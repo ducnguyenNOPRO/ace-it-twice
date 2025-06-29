@@ -1,1 +1,1 @@
-# Ace-it-II
+A personal budget app for students
