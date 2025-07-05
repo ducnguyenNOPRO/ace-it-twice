@@ -1,0 +1,7 @@
+.nav-item{
+    font-size: 1.2rem;
+    font-weight: 400;
+}
+.nav-item:hover{
+    text-decoration-line: underline;
+}
