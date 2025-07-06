@@ -32,7 +32,7 @@ export default function Footer() {
                             placeholder="Your email address..."
                             className="text-black tracking-wider bg-white p-1 rounded-md shadow-md">   
                         </input>
-                        <button className="px-6 py-2 bg-orange-400 text-white rounded-lg shadow font-medium hover:bg-orange-500 transition">
+                        <button className="px-6 py-2 bg-orange-400 text-white rounded-lg shadow font-medium hover:bg-orange-500 transition cursor-pointer">
                             Submit
                         </button>
                     </form>
