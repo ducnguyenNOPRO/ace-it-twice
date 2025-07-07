@@ -23,7 +23,7 @@ export default function Navbar() {
                 </div>
 
                 <button
-                    className="cursor-pointer px-7 py-2 bg-orange-400 hover:bg-orange-500 transition text-white font-medium rounded-lg shadow cursor-pointer "
+                    className="px-7 py-2 bg-orange-400 hover:bg-orange-500 transition text-white font-medium rounded-lg shadow cursor-pointer "
                     onClick={goToLogin}>
                     Log In
                 </button>
