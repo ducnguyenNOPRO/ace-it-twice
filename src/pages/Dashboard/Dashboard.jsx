@@ -2,7 +2,7 @@ import React from 'react'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar/Topbar'
 import Card from '../../components/Card'
-import Transaction from '../../components/Transaction'
+import TransactionHistory from '../../components/TransactionHistory'
 import './Dashboard.css'
 import { MdOutlineBedroomParent } from "react-icons/md"
 
@@ -83,7 +83,7 @@ export default function Dashboard() {
         {/* Page Content*/}
         <div className="flex-1 overflow-auto">
           {/* Topbar*/}
-          <Topbar />
+          <Topbar pageName='Dashboard'/>
 
           {/* Main Content */}
           <div className="px-6">
@@ -108,7 +108,7 @@ export default function Dashboard() {
             </div>
             {/* Transaction History */}
             <section className="flex flex-wrap gap-6 w-full p-5">
-                <Transaction />
+                <TransactionHistory />
               
               {/* Top catogories */}
                 <div className="grow">

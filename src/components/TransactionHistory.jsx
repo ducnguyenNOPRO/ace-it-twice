@@ -13,7 +13,7 @@ export default function Transaction() {
                     <div className="font-semibold">Amount</div>
                     {/* Row */}
                     {[1, 2, 3].map((_, i) => (
-                        <React.Fragment key={i}>
+                        <React.Fragment className="flex justify-between items-center" key={i}>
                             <div>Taco Bell</div>
                             <div>Expense</div>
                             <div>Jul 7, 2025</div>

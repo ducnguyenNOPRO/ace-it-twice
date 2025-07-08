@@ -6,9 +6,25 @@ import { IoPricetagOutline } from "react-icons/io5";
 import { GoGoal } from "react-icons/go";
 import { IoIosHelpCircleOutline } from "react-icons/io";
 import { IoIosLogOut } from "react-icons/io";
+import { useNavigate } from 'react-router-dom'
 
 
 export default function Sidebar() {
+    const navigate = useNavigate();
+
+    const goToDashboard = () => {
+        navigate("/Dashboard")
+    }
+    const goToTransaction = () => {
+        navigate("/Transaction")
+    }
+    const goToSpendingPlan = () => {
+        navigate("/Categories")
+    }
+    const goToGoal = () => {
+        navigate("/Goal")
+    }
+
     return (
         <>
             <div className="w-60 not-sm:w-35 bg-gray-100 font-medium">
@@ -21,21 +37,21 @@ export default function Sidebar() {
                     
                     {/* Navigation links */}
                     <ul className="flex flex-col mt-10 p-0">
-                        <li>
+                        <li onClick={goToDashboard}>
                             <MdOutlineSpaceDashboard />
-                            Dashboard
+                           Dashboard
                         </li>
-                        <li>
+                        <li onClick={goToTransaction}>
                             <AiOutlineTransaction  />
                             Transaction
                         </li>
-                        <li>
+                        <li onClick={goToSpendingPlan}>
                             <IoPricetagOutline />
-                            Categories
+                                SpendingPlan
                         </li>
-                        <li>
+                        <li onClick={goToGoal}>
                             <GoGoal />
-                            Goals
+                            Goal
                         </li>
                     </ul>
                       

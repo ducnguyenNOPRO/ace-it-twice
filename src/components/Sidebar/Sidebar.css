@@ -3,15 +3,16 @@ ul li{
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 1.1rem;
+    font-size: 1rem;
     padding: 10px 0px 10px 30px;
     margin-top: 5px;
 }
 
-ul li:hover {
+ul li:hover, ul li button:hover {
     background-color: #ffd966;
     border-radius: 5%;
     color: white;
+    cursor: pointer;
 }
 
 @media (max-width: 640px){
