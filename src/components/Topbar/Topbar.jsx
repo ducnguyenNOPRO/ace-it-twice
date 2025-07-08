@@ -1,13 +1,13 @@
 import React from 'react'
 import { IoSearchSharp } from "react-icons/io5";
 
-export default function Topbar() {
+export default function Topbar({pageName}) {
     return (
         <>
             <div className="flex justify-between items-center pt-5 px-10 h-20">
                 <div>
                     <h1 className="text-2xl">
-                        Dashboard
+                        {pageName}
                     </h1>
                 </div>
                 <div className="flex items-center gap-2 relative">

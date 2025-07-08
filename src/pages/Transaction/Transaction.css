@@ -1,0 +1,11 @@
+.table-header{
+    padding-top: 7px;
+    padding-left: 8px;
+    color: gray;
+    font-weight: 600;
+    opacity: 700.7%;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background-color: white;
+}
