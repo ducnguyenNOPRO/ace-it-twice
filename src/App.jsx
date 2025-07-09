@@ -1,6 +1,6 @@
-import { Routes, Route, UNSAFE_DataRouterStateContext } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import Home from './pages/Home'
-import Login from './pages/Login'
+import Login from './pages/Account/Login'
 import Dashboard from './pages/Dashboard/Dashboard'
 import Transaction from './pages/Transaction/Transaction'
 import SpendingPlan from './pages/SpendingPlan'
@@ -11,7 +11,7 @@ function App() {
     <>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/Login" element={<Login />} />
+        <Route path="/Account/Login" element={<Login />} />
         <Route path="/Dashboard" element={<Dashboard />} />
         <Route path="/Transaction" element={<Transaction />} />
         <Route path="/SpendingPlan" element={<SpendingPlan />} />
