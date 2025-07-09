@@ -6,7 +6,7 @@ export default function Navbar() {
     const navigate = useNavigate();
         
     const goToLogin = () => {
-            navigate("/Login");
+            navigate("/Account/Login");
     }
     return (
         <>
