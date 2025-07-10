@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom';
 import {
-    registerUserWithEmailAndPassword,
     signInUserWithEmailAndPassword,
-    signInWithGoogle
+    signInWithGoogle,
+    signInWithFacebook
 } from '../../firebase/authHelpers'
-import { useAuth } from '../../contexts/authContex'
+import { useAuth } from '../../contexts/authContext'
+import { FcGoogle } from "react-icons/fc";
+import { ImFacebook2 } from "react-icons/im";
 
 export default function Login() {
     const navigate = useNavigate();
         
-    const { user, loading } = useAuth();
+    const { currentUser, loading } = useAuth();
 
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -18,11 +20,12 @@ export default function Login() {
     const [errorMsg, setErrorMsg] = useState(null)
 
     useEffect(() => {
-        if (!loading && user) {
+        if (!loading && currentUser) {
             navigate('/dashboard')  // Go to dashboard if already logged in
         }
-    }, [user, loading]) 
+    }, [currentUser, loading]) 
     
+    // Log in with Email and Password
     const onSubmit = async (e) => {
         e.preventDefault();
         setErrorMsg(null);
@@ -38,9 +41,6 @@ export default function Login() {
             try {
                 await signInUserWithEmailAndPassword(email, password)
             } catch (error) {
-                console.error('Error signing in:', error.message)
-                console.log('email:', email);
-                console.log('password:', password);
                  // Provide specific error messages based on Firebase error codes
                 if (error.code === 'auth/invalid-credential') {
                     setErrorMsg('No account found with the provided credentials.');
@@ -57,14 +57,44 @@ export default function Login() {
         }
     }
 
+    // Log In with Google
     const onGoogleSignIn = async (e) => {
         e.preventDefault()
         if (!isSigningIn) {
             setIsSigningIn(true)
-            await signInWithGoogle().catch(err => {
-                setIsSigningIn(false)
-            })
+            try {
+                await signInWithGoogle()
+                navigate('/dashboard')
+            } catch (error) {
+                console.error("Google sign-in failed:", error);
+            } finally {
+                setIsSigningIn(false);
+            }
         }
+    }
+
+    // Log In wit Facebook
+    const onFacebookSignIn = async (e) => {
+        e.preventDefault()
+        if (!isSigningIn) {
+            setIsSigningIn(true)
+            try {
+                await signInWithFacebook()
+                navigate('/dashboard')
+            } catch (error) {
+                console.error("Facebook sign-in failed:", error);
+            } finally {
+                setIsSigningIn(false);
+            }
+        }
+    }
+    
+        if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-100">
+                <p className="text-gray-500">Loading...</p>
+            </div>
+        );
     }
     return (
         <>  
@@ -74,7 +104,7 @@ export default function Login() {
                         Login to Ace-It Twice
                     </h1>
 
-                    {/* Login Form */ }
+                    {/* Email Password log in Form */ }
                     <form onSubmit={onSubmit}>
                         <label className="text-sm text-gray-600 font=bold" htmlFor="email">
                             Email
@@ -83,7 +113,7 @@ export default function Login() {
                             type="email"
                             id="email"
                             placeholder="Enter your username or email"
-                            className="mb-4 p-2 w-full border border-gray-400 rounded-lg focus:outline-none focus:ring-3 focus:ring-blue-500"
+                            className="mb-4 p-2 w-full border border-gray-400 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-600"
                             required
                             value={email}
                             onChange={(e) => {setEmail(e.target.value)}}
@@ -96,7 +126,7 @@ export default function Login() {
                             type="password"
                             id="password"
                             placeholder="Enter your password"
-                            className="mb-4 p-2 w-full border border-gray-400 rounded-lg focus:outline-none focus:ring-3 focus:ring-blue-500"
+                            className="mb-4 p-2 w-full border border-gray-400 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-600"
                             required
                             value={password}
                             onChange={(e) => {setPassword(e.target.value)}}
@@ -129,11 +159,28 @@ export default function Login() {
                             Forgot password?
                         </a>
                     </p>
+                    
+                    <div className="mt-3 flex justify-around text-gray-500">
+                        <button
+                            type="button"
+                            className="flex items-center gap-2 p-2 shadow-lg border border-b-black border-gray-200  rounded-md cursor-pointer"
+                            onClick={onGoogleSignIn}>
+                            <FcGoogle />
+                            <span>Sign In with Google</span>
+                        </button>
+                        <button
+                            type="button"
+                            className="flex items-center gap-2 p-2 shadow-lg border border-b-black border-gray-200  rounded-md cursor-pointer"
+                            onClick={onFacebookSignIn}>
+                            <ImFacebook2 className="text-blue-500" />
+                            <span>Sign In with Facebook</span>
+                        </button>
+                    </div>
 
                     {/* Register Link */}
                     <p className="text-sm text-gray-600 mt-4 text-center">
                         Don’t have an account?{' '}
-                        <a href="/Register" className="text-blue-500 hover:underline">
+                        <a href="/Account/Register" className="text-blue-500 hover:underline">
                             Register here.
                         </a>
                     </p>
