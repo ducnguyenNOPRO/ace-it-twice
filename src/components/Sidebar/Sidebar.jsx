@@ -7,24 +7,11 @@ import { IoPricetagOutline } from "react-icons/io5";
 import { GoGoal } from "react-icons/go";
 import { IoIosHelpCircleOutline } from "react-icons/io";
 import { IoIosLogOut } from "react-icons/io";
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 
 export default function Sidebar() {
     const navigate = useNavigate();
-
-    const goToDashboard = () => {
-        navigate("/Dashboard")
-    }
-    const goToTransaction = () => {
-        navigate("/Transaction")
-    }
-    const goToSpendingPlan = () => {
-        navigate("/Categories")
-    }
-    const goToGoal = () => {
-        navigate("/Goal")
-    }
 
     const onLogOut = () => {
         signUserOut();
@@ -42,22 +29,32 @@ export default function Sidebar() {
                     
                     {/* Navigation links */}
                     <ul className="flex flex-col mt-10 p-0">
-                        <li onClick={goToDashboard}>
+                        <Link to="/Dashboard">
+                            <li>
                             <MdOutlineSpaceDashboard />
                            Dashboard
                         </li>
-                        <li onClick={goToTransaction}>
-                            <AiOutlineTransaction  />
-                            Transaction
-                        </li>
-                        <li onClick={goToSpendingPlan}>
-                            <IoPricetagOutline />
-                                SpendingPlan
-                        </li>
-                        <li onClick={goToGoal}>
-                            <GoGoal />
-                            Goal
-                        </li>
+                        </Link>
+                        <Link to="/Transaction">
+                            <li>
+                                <AiOutlineTransaction  />
+                                Transaction
+                            </li>
+                        </Link>
+                        <Link to="/Spending-plan">
+                            <li>
+                                <IoPricetagOutline />
+                                    SpendingPlan
+                            </li>
+                        </Link>
+                        <Link to="/Goal">                         
+                            <li>
+                                <GoGoal />
+                                Goal
+                            </li>
+                        </Link>
+
+
                     </ul>
                       
                     {/* Bottom section */}
