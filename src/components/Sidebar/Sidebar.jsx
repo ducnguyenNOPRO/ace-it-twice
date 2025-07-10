@@ -1,5 +1,6 @@
 import React from 'react'
 import './Sidebar.css'
+import { signUserOut } from '../../firebase/authHelpers';
 import { MdOutlineSpaceDashboard } from "react-icons/md"
 import { AiOutlineTransaction } from "react-icons/ai";
 import { IoPricetagOutline } from "react-icons/io5";
@@ -25,6 +26,10 @@ export default function Sidebar() {
         navigate("/Goal")
     }
 
+    const onLogOut = () => {
+        signUserOut();
+        navigate("/")
+    }
     return (
         <>
             <div className="w-60 not-sm:w-35 bg-gray-100 font-medium">
@@ -61,7 +66,7 @@ export default function Sidebar() {
                             <IoIosHelpCircleOutline />
                             Help
                         </li>
-                        <li>
+                        <li onClick={onLogOut}>
                             <IoIosLogOut  />
                             Log out
                         </li>
