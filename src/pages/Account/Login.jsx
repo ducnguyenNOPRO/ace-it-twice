@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
     signInUserWithEmailAndPassword,
     signInWithGoogle,
@@ -18,6 +18,7 @@ export default function Login() {
     const [password, setPassword] = useState('')
     const [isSigningIn, setIsSigningIn] = useState(false)
     const [errorMsg, setErrorMsg] = useState(null)
+    const [showPassword, setShowPassword] = useState(false); // Checkbox to show password
 
     useEffect(() => {
         if (!loading && currentUser) {
@@ -123,7 +124,7 @@ export default function Login() {
                             Password
                         </label>
                         <input
-                            type="password"
+                            type={ showPassword ? "text" : "password"}
                             id="password"
                             placeholder="Enter your password"
                             className="mb-4 p-2 w-full border border-gray-400 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-600"
@@ -139,6 +140,8 @@ export default function Login() {
                             <input
                                 type="checkbox"
                                 id="show-password"
+                                checked = {showPassword}
+                                onChange={() => setShowPassword((prev) => !prev)}
                                 className="mr-2"/>
                             <label htmlFor="show-password" className="text-gray-700">
                                 Show Password
@@ -155,9 +158,9 @@ export default function Login() {
                     
                     {/* Forgot Password Link */}
                     <p className="text-sm text-gray-600 mt-4 text-center">
-                        <a href="/Forgot-password" className="text-blue-500 hover:underline">
+                        <Link to="/Account/Forgot-password" className="text-blue-500 hover:underline">
                             Forgot password?
-                        </a>
+                        </Link>
                     </p>
                     
                     <div className="mt-3 flex justify-around text-gray-500">
@@ -180,9 +183,9 @@ export default function Login() {
                     {/* Register Link */}
                     <p className="text-sm text-gray-600 mt-4 text-center">
                         Don’t have an account?{' '}
-                        <a href="/Account/Register" className="text-blue-500 hover:underline">
+                        <Link to="/Account/Register" className="text-blue-500 hover:underline">
                             Register here.
-                        </a>
+                        </Link>
                     </p>
                 </div>
             </div>

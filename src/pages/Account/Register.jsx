@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {registerUserWithEmailAndPassword} from '../../firebase/authHelpers'
 import { useAuth } from '../../contexts/authContext'
 
@@ -16,7 +16,7 @@ export default function Register() {
         uppercse: false,
         numeric: false
     })
-    const [showPassword, setShowPassword] = useState(false);
+    const [showPassword, setShowPassword] = useState(false); // Checkbox to show password
     const [errorMsg, setErrorMsg] = useState(null)
 
     // Validate password on change
@@ -178,6 +178,14 @@ export default function Register() {
                             Create Account
                         </button>
                     </form>
+
+                    {/* Return to Login */}
+                    <p className="text-sm text-gray-600 mt-4 text-center">
+                        Already have an account?{' '}
+                        <Link to="/Account/Login" className="text-blue-500 hover:underline">
+                            Login
+                        </Link>
+                    </p>
                 </div>
             </div>
         </>
