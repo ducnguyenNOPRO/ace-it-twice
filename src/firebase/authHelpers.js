@@ -12,7 +12,7 @@ import {
 } from "firebase/auth";
 import { auth } from "./firebase";
 import { db } from "./firebase";
-import {doc, setDoc, serverTimestamp} from "firebase/firestore"
+import {doc, getDoc, setDoc, serverTimestamp} from "firebase/firestore"
 
 export const registerUserWithEmailAndPassword = async (email, password, name) => {
     try {
@@ -41,13 +41,30 @@ export const registerUserWithEmailAndPassword = async (email, password, name) =>
 }
 
 export const signInUserWithEmailAndPassword = async (email, password) => {
-        return signInWithEmailAndPassword(auth, email, password)
-        
+        return signInWithEmailAndPassword(auth, email, password)        
+}
+
+const saveUserToFirestore = async (user, provider) => {
+    const userRef = doc(db, "users", user.uid)
+    const docSnap = await getDoc(userRef)
+
+    if (!docSnap.exists()) {
+        // Only create if it doesn't already exist
+        await setDoc(userRef, {
+            uid: user.uid,
+            email: user.email,
+            name: user.displayName,
+            provider: provider,
+            createdAt: serverTimestamp(),
+        });
+    }
 }
 
 export const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
+    const user = result.user
+    await saveUserToFirestore(user, "google")
 
     return result;
 }
@@ -55,9 +72,12 @@ export const signInWithGoogle = async () => {
 export const signInWithFacebook = async () => {
     const provider = new FacebookAuthProvider();
     const result = await signInWithPopup(auth, provider);
+    const user = result.user
+    await saveUserToFirestore(user, "facebook")
 
     return result;
 }
+
 export const signUserOut = () => {
     return auth.signOut();
 }
