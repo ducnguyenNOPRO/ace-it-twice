@@ -1,7 +1,8 @@
 import React from 'react'
+
 import { IoSearchSharp } from "react-icons/io5";
 
-export default function Topbar({pageName}) {
+export default function Topbar({pageName, userFirstInitial}) {
     return (
         <>
             <div className="flex justify-between items-center pt-5 px-10 h-20">
@@ -24,7 +25,7 @@ export default function Topbar({pageName}) {
                     </div>
                     
                     <div className="flex items-center justify-center bg-amber-300 w-10 h-10 rounded-full">
-                        M
+                        {userFirstInitial}
                     </div>       
                 </div>
             </div>

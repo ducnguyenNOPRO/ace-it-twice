@@ -1,9 +1,30 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
+import { useAuth } from '../../contexts/authContext'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar/Topbar'
 import './Transaction.css'
 
 export default function Transaction() {
+    const { currentUser, loading } = useAuth();
+
+    // Redirects to the login page if no user is logged in.
+    useEffect(() => {
+        if (!loading) {
+            if (!currentUser) {
+            navigate("/Account/Login")  // Redirect to login page if not authenticated
+            }
+
+        }
+    }, [currentUser, loading]);
+
+        // Show a loading indicator while authentication state is being determined
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-gray-100">
+                <p className="text-gray-500">Loading...</p>
+            </div>
+        );
+    }
     return (
         <>
             <div className="flex h-screen text-gray-500">
@@ -13,7 +34,7 @@ export default function Transaction() {
                 {/* Page Content*/}
                 <div className="flex-1 overflow-auto">
                     {/* Topbar*/}
-                    <Topbar pageName='Transaction' />
+                    <Topbar pageName='Dashboard' userFirstInitial={currentUser.displayName?.charAt(0)}/>
                     
                     <span className="w-full h-px bg-gray-200 block my-5"></span>
                     <section className="px-6">
