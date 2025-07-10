@@ -41,12 +41,7 @@ export const registerUserWithEmailAndPassword = async (email, password, name) =>
 }
 
 export const signInUserWithEmailAndPassword = async (email, password) => {
-    
-    try {
         return signInWithEmailAndPassword(auth, email, password)
-    } catch {
-
-    }
         
 }
 
@@ -77,6 +72,6 @@ export const passwordChange = (email) => {
 
 export const sendUserEmailVerification = () => {
     return sendEmailVerification(auth.currentUser, {
-        url: `$(windoe.location.origin)/`
+        url: `$(window.location.origin)/`
     })
 }
