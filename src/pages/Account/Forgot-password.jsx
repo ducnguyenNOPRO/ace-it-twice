@@ -17,6 +17,7 @@ export default function ForgotPassword() {
     }
 
     const handlePasswordReset = async () => {
+        setMessage(null); // Clear previous success message
         setErrorMsg(null) // clear previous error messsage
 
         if (!email) {
@@ -26,21 +27,21 @@ export default function ForgotPassword() {
 
         // Extra validation for email input
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            setError('Please enter a valid email address.');
+            setErrorMsg('Please enter a valid email address.');
             return;
         }
 
         try {   
-            await passwordChange(email);
+            await passwordReset(email);
             setMessage('A password reset email has been sent. Please check your email.');
         } catch (error) {
              // Handle Firebase-specific errors with detailed messages
             if (error.code === 'auth/user-not-found') {
-                setError('No account found with this email address. Please try again.');
+                setErrorMsg('No account found with this email address. Please try again.');
             } else if (error.code === 'auth/invalid-email') {
-                setError('The email address is not valid. Please try again.');
+                setErrorMsg('The email address is not valid. Please try again.');
             } else {
-                setError('Failed to send password reset email. Please try again later.');
+                setErrorMsg(error.code);
             }
         }
     }
@@ -55,15 +56,17 @@ export default function ForgotPassword() {
                     value={email}
                     onChange={(e) => {
                         setEmail(e.target.value);
+                        setErrorMsg(null) // clear previous error message
                     }}
                     placeholder="Enter your email"
                     className="mb-4 p-2 w-full border border-gray-400 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-600"
                 />
                 {/* Display success or error messages */}
+                {message && <p className="text-green-500 mb-4">{message}</p>}
                 {errorMsg && <p className="text-red-500 mb-4">{errorMsg}</p>}
                 <button
                     onClick={handlePasswordReset}
-                    className="bg-blue-500 text-white w-full py-2 rounded-lg hover:bg-blue-600"
+                    className="bg-blue-500 text-white w-full py-2 rounded-lg hover:bg-blue-600 cursor-pointer"
                 >
                     Reset Password
                 </button>
