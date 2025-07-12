@@ -81,12 +81,10 @@ export default function Dashboard() {
   
   // Redirects to the login page if no user is logged in.
     useEffect(() => {
-        if (!loading) {
-          if (!currentUser) {
-            navigate("/Account/Login")  // Redirect to login page if not authenticated
-          }
+      if (!currentUser) {
+        navigate("/Account/Login")  // Redirect to login page if not authenticated
+      }
 
-        }
     }, [currentUser, loading]);
   
       // Show a loading indicator while authentication state is being determined

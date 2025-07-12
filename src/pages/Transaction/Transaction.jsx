@@ -9,13 +9,10 @@ export default function Transaction() {
 
     // Redirects to the login page if no user is logged in.
     useEffect(() => {
-        if (!loading) {
-            if (!currentUser) {
+        if (!currentUser) {
             navigate("/Account/Login")  // Redirect to login page if not authenticated
-            }
-
         }
-    }, [currentUser, loading]);
+    }, [currentUser]);
 
         // Show a loading indicator while authentication state is being determined
     if (loading) {
@@ -34,7 +31,7 @@ export default function Transaction() {
                 {/* Page Content*/}
                 <div className="flex-1 overflow-auto">
                     {/* Topbar*/}
-                    <Topbar pageName='Dashboard' userFirstInitial={currentUser.displayName?.charAt(0)}/>
+                    <Topbar pageName='Transaction' userFirstInitial={currentUser.displayName?.charAt(0)}/>
                     
                     <span className="w-full h-px bg-gray-200 block my-5"></span>
                     <section className="px-6">
