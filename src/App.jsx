@@ -6,8 +6,9 @@ import ForgotPassword from './pages/Account/Forgot-password'
 import Dashboard from './pages/Dashboard/Dashboard'
 import Transaction from './pages/Transaction/Transaction'
 import SpendingPlan from './pages/SpendingPlan'
-import ConnectBank from './pages/Connect-Bank'
+import Setting from './pages/Setting'
 import Goal from './pages/Goal'
+import ProtectedRoute from './components/ProtectRoute'
 
 function App() {
   return (
@@ -17,12 +18,12 @@ function App() {
         <Route path="/Account/Login" element={<Login />} />
         <Route path="/Account/Register" element={<Register />} />
         <Route path="/Account/Forgot-password" element={<ForgotPassword />} />
-        <Route path="/Connect-bank" element={<ConnectBank />} />
-        <Route path="/Dashboard" element={<Dashboard />} />
-        <Route path="/Transaction" element={<Transaction />} />
-        <Route path="/SpendingPlan" element={<SpendingPlan />} />
-        <Route path="/Goal" element={<Goal />} />
-      </Routes>
+        <Route path="/Setting" element={<ProtectedRoute> <Setting /> </ProtectedRoute>}/>
+        <Route path="/Dashboard" element={<ProtectedRoute> <Dashboard /> </ProtectedRoute>}/>
+        <Route path="/Transaction" element={<ProtectedRoute> <Transaction /> </ProtectedRoute>} />
+        <Route path="/SpendingPlan" element={<ProtectedRoute> <SpendingPlan /> </ProtectedRoute>} />
+        <Route path="/Goal" element={<ProtectedRoute> <Goal /> </ProtectedRoute>} />
+        </Routes>
     </>
   )
 }

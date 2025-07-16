@@ -47,7 +47,7 @@ export default function Sidebar() {
                                     SpendingPlan
                             </li>
                         </Link>
-                        <Link to="/Goal">                         
+                        <Link to="/Connect-bank">                         
                             <li>
                                 <GoGoal />
                                 Goal
