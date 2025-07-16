@@ -6,6 +6,7 @@ import ForgotPassword from './pages/Account/Forgot-password'
 import Dashboard from './pages/Dashboard/Dashboard'
 import Transaction from './pages/Transaction/Transaction'
 import SpendingPlan from './pages/SpendingPlan'
+import ConnectBank from './pages/Connect-Bank'
 import Goal from './pages/Goal'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
         <Route path="/Account/Login" element={<Login />} />
         <Route path="/Account/Register" element={<Register />} />
         <Route path="/Account/Forgot-password" element={<ForgotPassword />} />
+        <Route path="/Connect-bank" element={<ConnectBank />} />
         <Route path="/Dashboard" element={<Dashboard />} />
         <Route path="/Transaction" element={<Transaction />} />
         <Route path="/SpendingPlan" element={<SpendingPlan />} />
