@@ -12,9 +12,8 @@ export default function ConnectBank() {
             try {
                 const createLinkToken = httpsCallable(functions, "createLinkToken");
                 const result = await createLinkToken();
+                console.log("✅ Link Token:", result.data.link_token);
                 setLinkToken(result.data.link_token);
-                console.log(linkToken);
-                console.log("inside")
             } catch (error) {
             console.error("Failed to get link token:", error);
             }
@@ -28,9 +27,17 @@ export default function ConnectBank() {
     const { open, ready } = usePlaidLink({
         token: linkToken,
         onSuccess: async (public_token, metadata) => {
-            console.log("✅ Public Token:", public_token);
-            console.log("🏦 Institution metadata:", metadata);
             // TODO: Send public_token to your backend to exchange for access_token
+            try {
+                console.log(public_token)
+                const exchangeToken = httpsCallable(functions, "exchangePublicToken");
+                const result = await exchangeToken({ public_token })
+                
+                console.log("🔑 Access Token:", result.data.accessToken);
+                console.log("🏦 Item ID:", result.data.itemId);
+            } catch (error) {
+                console.error("Error exchanging token:", error);
+            }
         },
             onExit: (error, metadata) => {
             console.warn("⚠️ User exited Plaid Link", error, metadata);
@@ -41,10 +48,13 @@ export default function ConnectBank() {
         <>
             <button
                 disabled={!ready}
-                onClick={() => open()}
+                onClick={() => {
+                    console.log("button clicked")
+                    open()
+                }}
                 className="border-2 bg-amber-400 cursor-pointer"
             >
-            Connect you bank
+                Connect you bank
             </button>
         </>
     )

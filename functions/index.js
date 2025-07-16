@@ -1,7 +1,6 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
-require('dotenv').config()
 
 admin.initializeApp();
 
@@ -24,7 +23,6 @@ exports.createLinkToken = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "User must be logged in");
     }*/
-
     const plaidRequest = {
         user: {
             client_user_id: "user",  // use Firebase user ID to associate with Plaid
@@ -47,3 +45,36 @@ exports.createLinkToken = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError("internal", "Failed to create link token");
     }
 });
+
+// Exchange public token for permanent access token
+exports.exchangePublicToken = functions.https.onCall(async (data, context) => {
+  //debugger;
+  const public_token = data.data.public_token;
+
+  if (!public_token) {
+    console.error("❌ public_token is missing. Full data received:", data);
+    throw new functions.https.HttpsError("invalid-argument", "Public token is required.");
+  }
+
+  try {
+    const response = await plaidClient.itemPublicTokenExchange({ public_token });
+    console.log("✅ Exchange response:", response.data);
+    console.log("✅ Context", context);
+
+    // These values should be saved to a persistent database and
+    // associated with the currently signed-in user
+    const accessToken = response.data.access_token;
+    const itemId = response.data.item_id;
+
+    const uid = data.auth.uid;
+    await admin.firestore().collection('users').doc(uid).set({
+      accessToken,
+      itemId
+    })
+
+    return {accessToken, itemId}
+  } catch (error) {
+    console.error("Error exchanging public token:", error);
+    throw new functions.https.HttpsError("internal", "Failed to exchange token");
+  }
+})
