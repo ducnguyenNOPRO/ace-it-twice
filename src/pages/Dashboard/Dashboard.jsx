@@ -104,7 +104,7 @@ export default function Dashboard() {
         {/* Page Content*/}
         <div className="flex-1 overflow-auto">
           {/* Topbar*/}
-          <Topbar pageName='Dashboard' userFirstInitial={currentUser.displayName?.charAt(0)}/>
+          <Topbar pageName='Dashboard' userFirstInitial={currentUser.displayName?.charAt(0)} />
 
           {/* Main Content */}
           <div className="px-6">

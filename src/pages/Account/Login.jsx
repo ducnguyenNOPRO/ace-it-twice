@@ -65,7 +65,7 @@ export default function Login() {
             setIsSigningIn(true)
             try {
                 await signInWithGoogle()
-                navigate('/dashboard')
+                navigate('/Connect-bank')
             } catch (error) {
                 console.error("Google sign-in failed:", error);
             } finally {
@@ -81,7 +81,7 @@ export default function Login() {
             setIsSigningIn(true)
             try {
                 await signInWithFacebook()
-                navigate('/dashboard')
+                navigate('/Connect-bank')
             } catch (error) {
                 console.error("Facebook sign-in failed:", error);
             } finally {
