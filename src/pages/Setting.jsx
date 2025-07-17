@@ -3,27 +3,25 @@ import { usePlaidLink } from "react-plaid-link";
 import { httpsCallable } from "firebase/functions";
 import  {functions} from '../firebase/firebase'
 
-export default function ConnectBank() {
+const PlaidInterface = () => {
     const [linkToken, setLinkToken] = useState(null);
+    const [shouldOpen, setShouldOpen] = useState(false); // trigger to open when ready
 
-
-    useEffect(() => {
-        const fetchLinkToken = async () => {
-            try {
-                const createLinkToken = httpsCallable(functions, "createLinkToken");
-                const result = await createLinkToken();
-                console.log("✅ Link Token:", result.data.link_token);
-                setLinkToken(result.data.link_token);
-            } catch (error) {
+    // Get link token for Plaid Link
+    const fetchLinkToken = async () => {
+        try {
+            const createLinkToken = httpsCallable(functions, "createLinkToken");
+            const result = await createLinkToken();
+            console.log("✅ Link Token:", result.data.link_token);
+            setLinkToken(result.data.link_token);
+            setShouldOpen(true);
+        } catch (error) {
             console.error("Failed to get link token:", error);
-            }
         }
-
-        
-        fetchLinkToken();
-  }, []);
+    }
 
     // Set up Plaid Link
+    // Get public toekn and exchange it for a permanent access token
     const { open, ready } = usePlaidLink({
         token: linkToken,
         onSuccess: async (public_token, metadata) => {
@@ -32,9 +30,6 @@ export default function ConnectBank() {
                 console.log(public_token)
                 const exchangeToken = httpsCallable(functions, "exchangePublicToken");
                 const result = await exchangeToken({ public_token })
-                
-                console.log("🔑 Access Token:", result.data.accessToken);
-                console.log("🏦 Item ID:", result.data.itemId);
             } catch (error) {
                 console.error("Error exchanging token:", error);
             }
@@ -42,20 +37,28 @@ export default function ConnectBank() {
             onExit: (error, metadata) => {
             console.warn("⚠️ User exited Plaid Link", error, metadata);
         },
-  });
+    });
+    
+    useEffect(() => {
+        if (shouldOpen && ready) {
+            open();
+            setShouldOpen(false);
+        }
+    }, [ready, shouldOpen, open])
 
     return (
         <>
             <button
-                disabled={!ready}
-                onClick={() => {
-                    console.log("button clicked")
-                    open()
-                }}
+                disabled={shouldOpen}
+                onClick={() => fetchLinkToken() }
                 className="border-2 bg-amber-400 cursor-pointer"
             >
                 Connect you bank
             </button>
         </>
     )
+}
+
+export default function Setting() {
+    
 }
