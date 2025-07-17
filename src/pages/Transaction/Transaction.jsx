@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/authContext'
 import Sidebar from '../../components/Sidebar/Sidebar'
-import Topbar from '../../components/Topbar/Topbar'
+import Topbar from '../../components/Topbar'
 import './Transaction.css'
 
 export default function Transaction() {

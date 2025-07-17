@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import Sidebar from '../../components/Sidebar/Sidebar'
-import Topbar from '../../components/Topbar/Topbar'
+import Topbar from '../../components/Topbar'
 import Card from '../../components/Card'
 import TransactionHistory from '../../components/TransactionHistory'
 import './Dashboard.css'

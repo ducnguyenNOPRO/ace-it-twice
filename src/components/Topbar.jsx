@@ -7,7 +7,7 @@ export default function Topbar({pageName, userFirstInitial}) {
         <>
             <div className="flex justify-between items-center pt-5 px-10 h-20">
                 <div>
-                    <h1 className="text-2xl">
+                    <h1 className="text-2xl text-black font-medium">
                         {pageName}
                     </h1>
                 </div>
