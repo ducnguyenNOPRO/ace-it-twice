@@ -6,7 +6,7 @@ import ForgotPassword from './pages/Account/Forgot-password'
 import Dashboard from './pages/Dashboard/Dashboard'
 import Transaction from './pages/Transaction/Transaction'
 import SpendingPlan from './pages/SpendingPlan'
-import Setting from './pages/Setting'
+import Setting from './pages/Setting/Setting'
 import Goal from './pages/Goal'
 import ProtectedRoute from './components/ProtectRoute'
 

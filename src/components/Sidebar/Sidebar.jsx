@@ -7,6 +7,7 @@ import { IoPricetagOutline } from "react-icons/io5";
 import { GoGoal } from "react-icons/go";
 import { IoIosHelpCircleOutline } from "react-icons/io";
 import { IoIosLogOut } from "react-icons/io";
+import { CgProfile } from "react-icons/cg";
 import { useNavigate, Link } from 'react-router-dom'
 
 
@@ -47,7 +48,7 @@ export default function Sidebar() {
                                     SpendingPlan
                             </li>
                         </Link>
-                        <Link to="/Connect-bank">                         
+                        <Link to="/Goal">                         
                             <li>
                                 <GoGoal />
                                 Goal
@@ -59,6 +60,12 @@ export default function Sidebar() {
                       
                     {/* Bottom section */}
                     <ul className="mt-auto mb-10">
+                        <Link to="/Setting">
+                            <li>
+                                <CgProfile  />
+                                Setting
+                            </li>
+                        </Link>
                         <li>
                             <IoIosHelpCircleOutline />
                             Help

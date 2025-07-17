@@ -1,0 +1,17 @@
+input[type="text"],
+input[type="email"],
+select{
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    background-color: #f3f4f6;
+    outline: none;
+    color: black;
+}
+
+label{
+    display: block;
+    color: black;
+    font-weight: medium;
+    margin-bottom: min(6px, 2%)
+}
