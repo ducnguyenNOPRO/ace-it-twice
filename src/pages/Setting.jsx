@@ -53,7 +53,7 @@ const PlaidInterface = () => {
                 onClick={() => fetchLinkToken() }
                 className="border-2 bg-amber-400 cursor-pointer"
             >
-                Connect you bank
+                Link you bank
             </button>
         </>
     )
