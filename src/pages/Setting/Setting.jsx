@@ -64,10 +64,11 @@ const PlaidInterface = () => {
     )
 }
 
-const ProfileImage = ({ previewImage, handleButtonClick, fileInputRef, handleFileChange }) => {
+// Component
+const ProfileImage = ({ photoURL, handleButtonClick, fileInputRef, handleFileChange }) => {
     return (
     <div className="relative group">
-        <img src={previewImage}
+        <img src={photoURL}
             className="w-25 h-25 rounded-full object-cover z-10 group group-hover:z-0 group-hover:opacity-50 transition duration-300"
         />
         <button
@@ -88,17 +89,140 @@ const ProfileImage = ({ previewImage, handleButtonClick, fileInputRef, handleFil
     )
 }
 
+// User Form update component
+const UserForm = ({ userData, onSave, photoURL }) => {
+    const [formValues, setFormValues] = useState({
+        fullName: "",
+        preferedName: "",
+        gender: "",
+        language: ""
+    })
+
+    useEffect(() => {
+        if (userData) {
+            setFormValues((prev) => ({...prev, ...userData }));
+        }
+    }, [userData]);
+
+    const handleInputChange = (e) => {
+        const {name, value } = e.target;
+        setFormValues((prev) => ({ ...prev, [name]: value }));
+    }
+
+    const handleFormSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            // Update user in Firestore
+            const updateUser = httpsCallable(functions, "updateUser");
+            const result = await updateUser({ ...formValues });
+            // httpsCallable alway return an objec like {data: {actual data}}
+            console.log("Saved to Firestore result:", result.data.message)
+
+            // Update user in Firebase Auth
+            const updateUserAuth = httpsCallable(functions, "updateUserAuth");
+            const resultAuth = await updateUserAuth({
+                fullName: formValues.fullName,
+                preferedName: formValues.preferedName,
+                photoURL
+            });
+            console.log("Saved to Firebase Auth result:", resultAuth.data.message)
+
+            // Re-fetch updated user profile 
+            const getUser = httpsCallable(functions, "getUser");
+            const resultUser = await getUser();
+            console.log("User profile", resultUser.data);
+            onSave(resultUser.data);
+
+        } catch (error) {
+            console.error("Failed to update user", error);
+        }
+    }
+    return (
+        <form
+            className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6"
+            onSubmit={handleFormSubmit}
+        >
+            <div>
+                <label htmlFor="full-name">
+                    Full Name
+                </label>
+                <input
+                    type="text"
+                    value={formValues.fullName}
+                    id="full-name"
+                    name="fullName"
+                    placeholder={"Your Full Name"}
+                    onChange={handleInputChange}
+                />
+            </div>
+            <div>
+                <label htmlFor="prefered-name">
+                    Prefered Name
+                </label>
+                <input
+                    type="text"
+                    value={formValues.preferedName}
+                    id="prefered-name"
+                    name="preferedName"
+                    placeholder="Your Prefered Name"
+                    onChange={handleInputChange}
+                />
+            </div>
+            <div>
+                <label htmlFor="gender">
+                    Gender
+                </label>
+                <select
+                    id="gender"
+                    name="gender"
+                    value={formValues.gender}
+                    onChange={handleInputChange}
+                >
+                    <option value="">Choose an option</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="no-answer">Prefered Not to Answer</option>
+                </select>
+            </div>
+            <div>
+                <label htmlFor="language">
+                    Language
+                </label>
+                <select
+                    id="language"
+                    name="language"
+                    value={formValues.language}
+                    onChange={handleInputChange}
+                >
+                    <option value="">Choose an option</option>
+                    <option value="English">English</option>
+                    <option value="Spanish">Spanish</option>
+                    <option value="Chinese">Chinese</option>
+                </select>
+            </div>
+            <button
+                className="px-6 py-2 w-20 bg-orange-400 text-white rounded-lg font-medium hover:bg-orange-500 transition cursor-pointer"
+                type="submit"
+            >
+                Save
+            </button>
+            <span className="h-px  sm:col-span-2 bg-gray-200 block"></span>
+        </form>
+    )
+}
+
 export default function Setting() {
-    const { currentUser } = useAuth();
-    const [fullName, setFullName] = useState('');
-    const [preferedName, setPreferedName] = useState('');
-    const [gender, setGender] = useState('');
-    const [language, setLanguage] = useState(null)
-    const [previewImage, setPreviewImage] = useState(
-        currentUser.photoURL || "../../../public/user.png"
+    const [userData, setUserData] = useState(null);
+    const [photoURL, setPhotoURL] = useState(
+        "https://img.icons8.com/?size=100&id=7820&format=png&color=000000"
     )  // user image
     const [tempObjectURL, setTempObjectURL] = useState(null); // keep track of temporary URL
     const fileInputRef = useRef();
+
+    // Handler for when form is saved and updated user data
+    const handleSave = (updatedData) => {
+        setUserData(updatedData);
+    };
 
     const handleButtonClick = () => {
         fileInputRef.current.click();
@@ -113,11 +237,27 @@ export default function Setting() {
             // Create a temporary URL to preview the image
             const imageUrl = URL.createObjectURL(file);
             console.log("Temporary object URL:", imageUrl);
-            setPreviewImage(imageUrl);
+            setPhotoURL(imageUrl);
             setTempObjectURL(imageUrl); // Store to clean up later
         }
     }
-    
+
+    useEffect(() => {
+        const getUserData = async () => {
+            try {
+                const getUser = httpsCallable(functions, "getUser")
+                // httpsCallable  return an object {data: {actual data}}
+                const result = await getUser();
+                console.log("User profile", result.data);
+                setUserData(result.data)
+            } catch (error) {
+                console.log("Failed to get user profile", error)
+            }
+        }
+        getUserData();
+    }, [])
+
+
     // Cleanup on component unmount
     useEffect(() => {
         return () => {
@@ -126,6 +266,16 @@ export default function Setting() {
         }
         };
     }, [tempObjectURL]);
+
+    // Show a loading indicator while authentication state is being determined
+    if (!userData) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-gray-100">
+                <p className="text-gray-500">Loading...</p>
+            </div>
+        );
+    }
+
     return (
         <>
             <div className="flex h-screen text-gray-500">
@@ -135,88 +285,30 @@ export default function Setting() {
                 {/* Page Content*/}
                 <div className="flex-1 overflow-auto">
                     {/* Topbar*/}
-                    <Topbar pageName={`Welcome back ${currentUser.displayName}`} userFirstInitial={currentUser.displayName?.charAt(0)} />
+                    <Topbar pageName={`Welcome back ${userData.fullName ||  "No Name"}`}
+                        userFirstInitial={userData.fullName?.charAt(0) || ""}
+                    />
                     <div className="mx-6 mt-6 h-20 rounded-t-xl shadow-t-2xl bg-linear-to-r from-blue-200 to-yellow-100">
                     </div>
                     {/* Main Content */}
                     <main className="mx-6 p-6 shadow-lg">
 
                         {/* Header */}
-                        <div className="flex justify-between items-center mb-2">
-                            <div className="flex items-center gap-2">
-                                { /* User Profile Image */ }
-                                <ProfileImage
-                                    previewImage={previewImage}
-                                    fileInputRef={fileInputRef}    
-                                    handleButtonClick={handleButtonClick}
-                                    handleFileChange={handleFileChange}
-                                />
+                        <div className="flex items-center gap-2 mb-2">
+                            { /* User Profile Image */ }
+                            <ProfileImage
+                                photoURL={photoURL}
+                                fileInputRef={fileInputRef}    
+                                handleButtonClick={handleButtonClick}
+                                handleFileChange={handleFileChange}
+                            />
 
-                                <div>
-                                    <p className="text-black text-xl font-bold">{currentUser.displayName}</p>
-                                    <p>Some email</p>
-                                </div>
+                            <div>
+                                <p className="text-black text-xl font-bold">{userData?.fullName || ""}</p>
+                                <p>{userData.email}</p>
                             </div>
-                            <button
-                                className="px-6 py-2 bg-orange-400 text-white rounded-lg font-medium hover:bg-orange-500 transition cursor-pointer"
-                            >
-                                Save
-                            </button>
                         </div>
-
-                        <form className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
-                            <div>
-                                <label htmlFor="full-name">
-                                    Full Name
-                                </label>
-                                <input
-                                    type="text"
-                                    value={fullName}
-                                    id="full-name"
-                                    placeholder={currentUser.displayName ? currentUser.displayName : "Your Full Name"}
-                                    onChange={(e) => setFullName(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="prefered-name">
-                                    Prefered Name
-                                </label>
-                                <input
-                                    type="text"
-                                    value={preferedName}
-                                    id="prefered-name"
-                                    placeholder="Your Prefered Name"
-                                    onChange={(e) => setPreferedName(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="gender">
-                                    Gender
-                                </label>
-                                <select
-                                    id="gender"
-                                >
-                                    <option value="">Choose an option</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                    <option value="no-answer">Prefered Not to Answer</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label htmlFor="language">
-                                    Language
-                                </label>
-                                <select
-                                    id="language"
-                                >
-                                    <option value="">Choose an option</option>
-                                    <option value="English">English</option>
-                                    <option value="Spanish">Spanish</option>
-                                    <option value="Chinese">Chinese</option>
-                                </select>
-                            </div> 
-                            <span className="h-px  sm:col-span-2 bg-gray-200 block"></span>
-                        </form>
+                        <UserForm photoURL={photoURL} userData={userData} onSave={handleSave} />
 
                         <div className="flex justify-between gap-2 items-center">
                             <p className="text-black font-bold">Bank account</p>

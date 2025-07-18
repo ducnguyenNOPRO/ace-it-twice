@@ -7,7 +7,7 @@ export default function Register() {
     const navigate = useNavigate();
     const { loading } = useAuth();
 
-    const [name, setName] = useState('')
+    const [fullName, setFullName] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [passwordConfirmation, setPasswordComfirmation] = useState('')
@@ -59,7 +59,7 @@ export default function Register() {
         }
         console.log("Passed validation");
         try {
-            await registerUserWithEmailAndPassword(email, password, name);
+            await registerUserWithEmailAndPassword(email, password, fullName);
             navigate("/Account/Login")  // back to login page after succesfull created account
         } catch (error) {
             if (error.code === "auth/weak-password") {
@@ -91,17 +91,17 @@ export default function Register() {
                     {/* Email Password log in Form */ }
                     <form onSubmit={onSubmit}>
 
-                        <label className="text-sm text-gray-600 font=bold" htmlFor="name">
+                        <label className="text-sm text-gray-600 font=bold" htmlFor="full-name">
                             Name
                         </label>
                         <input
                             type="text"
-                            id="name"
+                            id="full-name"
                             placeholder="Enter your username"
                             className="mb-4 p-2 w-full border border-gray-400 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-600"
                             required
-                            value={name}
-                            onChange={(e) => {setName(e.target.value)}}
+                            value={fullName}
+                            onChange={(e) => {setFullName(e.target.value)}}
                             autoComplete="email" />
                         <label className="text-sm text-gray-600 font=bold" htmlFor="email">
                             Email
