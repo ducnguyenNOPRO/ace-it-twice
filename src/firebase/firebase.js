@@ -3,6 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, connectAuthEmulator } from "firebase/auth"
 import { getFirestore } from 'firebase/firestore';
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
+import { getStorage } from "firebase/storage";
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -18,6 +19,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app)
 const functions = getFunctions(app)
+const storage = getStorage(app, "http://localhost:9199");
 
 // Connect to emulators
 if (location.hostname === "localhost") {
@@ -25,4 +27,4 @@ if (location.hostname === "localhost") {
   connectFunctionsEmulator(functions, "localhost", 5001);
 }
 
-export {app, auth, db, functions}
+export {app, auth, db, functions, storage}

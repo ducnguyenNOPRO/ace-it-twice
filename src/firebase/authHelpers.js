@@ -14,12 +14,12 @@ import { auth } from "./firebase";
 import { db } from "./firebase";
 import {doc, getDoc, setDoc, serverTimestamp} from "firebase/firestore"
 
-export const registerUserWithEmailAndPassword = async (email, password, name) => {
+export const registerUserWithEmailAndPassword = async (email, password, fullName) => {
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
         await updateProfile(userCredential.user, {
-            displayName: name
+            displayName: fullName
         })  // Set display name in Firebase Auth
 
         // Create user document in Firestore
@@ -27,7 +27,7 @@ export const registerUserWithEmailAndPassword = async (email, password, name) =>
         await setDoc(userRef, {
             uid: userCredential.user.uid,
             email,
-            name,
+            fullName,
             createdAt: serverTimestamp()
         })
         return userCredential;
@@ -53,7 +53,7 @@ const saveUserToFirestore = async (user, provider) => {
         await setDoc(userRef, {
             uid: user.uid,
             email: user.email,
-            name: user.displayName,
+            fullName: user.displayName,
             provider: provider,
             createdAt: serverTimestamp(),
         });

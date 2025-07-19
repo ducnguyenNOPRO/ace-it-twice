@@ -76,3 +76,65 @@ exports.exchangePublicToken = functions.https.onCall(async (request) => {
     throw new functions.https.HttpsError("internal", "Failed to exchange token");
   }
 })
+
+// Get all user data from firestore
+exports.getUser = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+  try {
+    const userDoc = await admin.firestore().collection("users").doc(uid).get();
+
+    if (!userDoc.exists) {
+      throw new functions.https.HttpsError("not-found", "User profile not found");
+    }
+    return userDoc.data();
+  } catch (error) {
+    console.error("Error fetching user profile", error);
+    throw new functions.https.HttpsError("internal", "Fail to get user profile")
+  }
+})
+
+// Update user profile in Firebase Authentication
+exports.updateUserAuth = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const userData = request.data;
+
+  const userPhotoURL = userData.photoURL;
+
+  try {
+    await admin.auth().updateUser(uid, {
+      photoURL: userPhotoURL,
+      displayName: userData.fullName || userData.preferedName || undefined
+    })
+    return {success: true, message: "User profile updated"}
+  } catch (error) {
+    console.error("Error updating user in Firebase Auth:", error);
+    throw new functions.https.HttpsError("internal", "Fail to update user")
+  }
+})
+
+// Update user in firestore database
+exports.updateUser = functions.https.onCall(async (request) => {
+  if (!request.auth) {
+    throw new functions.https.HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const userData = request.data;
+  console.log("User data passed:", userData);
+
+  try {
+    // Update user in Firestore
+    await admin.firestore().collection("users").doc(uid).set(userData, { merge: true })
+    return {success: true, message: "User profile updated"}
+  } catch (error) {
+    console.error("Error updating user in Firestore:", error);
+    throw new functions.https.HttpsError("internal", "Fail to update user")
+  }
+})
