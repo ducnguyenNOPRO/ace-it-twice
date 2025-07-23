@@ -74,7 +74,6 @@ const TopCategories = () => {
 
 
 export default function Dashboard() {
-  
           
   const { currentUser, loading } = useAuth();
 

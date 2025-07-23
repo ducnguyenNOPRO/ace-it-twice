@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
+import { db } from "../../firebase/firebase";
+import { getDocs, collection } from "firebase/firestore";
 import { usePlaidLink } from "react-plaid-link";
 import { httpsCallable } from "firebase/functions";
 import { functions } from '../../firebase/firebase'
@@ -8,61 +10,107 @@ import Topbar from "../../components/Topbar";
 import { FaCameraRetro } from "react-icons/fa";
 import './Setting.css'
 
-const PlaidInterface = () => {
-    const [linkToken, setLinkToken] = useState(null);
-    const [shouldOpen, setShouldOpen] = useState(false); // trigger to open when ready
+const PlaidInterface = ({ userUid }) => {
+  const [linkToken, setLinkToken] = useState(null);
+  const [shouldOpen, setShouldOpen] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
-    // Get link token for Plaid Link
-    const fetchLinkToken = async () => {
-        try {
-            const createLinkToken = httpsCallable(functions, "createLinkToken");
-            const result = await createLinkToken();
-            console.log("✅ Link Token:", result.data.link_token);
-            setLinkToken(result.data.link_token);
-            setShouldOpen(true);
-        } catch (error) {
-            console.error("Failed to get link token:", error);
-        }
+  const checkPlaidConnection = async (userUid) => {
+    const plaidRef = collection(db, `users/${userUid}/plaid`);
+    const snapshot = await getDocs(plaidRef);
+    return !snapshot.empty;
+  };
+
+  useEffect(() => {
+    const fetchConnectionStatus = async () => {
+      const connected = await checkPlaidConnection(userUid);
+      setIsConnected(connected);
+    };
+    fetchConnectionStatus();
+  }, [userUid]);
+
+  const fetchLinkToken = async () => {
+    try {
+      const createLinkToken = httpsCallable(functions, "createLinkToken");
+      const result = await createLinkToken();
+      console.log("✅ Link Token:", result.data.link_token);
+      setLinkToken(result.data.link_token);
+      setShouldOpen(true);
+    } catch (error) {
+      console.error("Failed to get link token:", error);
     }
+  };
 
-    // Set up Plaid Link
-    // Get public toekn and exchange it for a permanent access token
-    const { open, ready } = usePlaidLink({
-        token: linkToken,
-        onSuccess: async (public_token, metadata) => {
-            // TODO: Send public_token to your backend to exchange for access_token
-            try {
-                console.log(public_token)
-                const exchangeToken = httpsCallable(functions, "exchangePublicToken");
-                const result = await exchangeToken({ public_token })
-            } catch (error) {
-                console.error("Error exchanging token:", error);
-            }
-        },
-            onExit: (error, metadata) => {
-            console.warn("⚠️ User exited Plaid Link", error, metadata);
-        },
-    });
-    
-    useEffect(() => {
-        if (shouldOpen && ready) {
-            open();
-            setShouldOpen(false);
-        }
-    }, [ready, shouldOpen, open])
+  return (
+    <div className="flex justify-between gap-2 items-center">
+      <p className="text-black font-bold">Bank account</p>
+      <p>{isConnected ? "Bank is connected" : "No bank connected"}</p>
+      {!isConnected ? (
+        <button
+          disabled={shouldOpen}
+          onClick={fetchLinkToken}
+          className="px-6 py-2 bg-orange-400 text-white rounded-lg font-medium hover:bg-orange-500 transition cursor-pointer"
+        >
+          Connect
+        </button>
+      ) : (
+        <p className="font-medium">Connected</p>
+      )}
 
-    return (
-        <>
-            <button
-                disabled={shouldOpen}
-                onClick={() => fetchLinkToken() }
-                className="px-6 py-2 bg-orange-400 text-white rounded-lg font-medium hover:bg-orange-500 transition cursor-pointer"
-            >
-                Connect
-            </button>
-        </>
-    )
-}
+      {/* Conditionally render the PlaidLink component ONLY when linkToken exists */}
+      {linkToken && (
+        <PlaidLinkWrapper
+          linkToken={linkToken}
+          shouldOpen={shouldOpen}
+          setShouldOpen={setShouldOpen}
+          setLinkToken={setLinkToken}
+          setIsConnected={setIsConnected}
+        />
+      )}
+    </div>
+  );
+};
+
+// Separate component that uses the hook
+const PlaidLinkWrapper = ({
+  linkToken,
+  shouldOpen,
+  setShouldOpen,
+  setLinkToken,
+  setIsConnected,
+}) => {
+  const { open, ready } = usePlaidLink({
+    token: linkToken,
+    onSuccess: async (public_token, metadata) => {
+      try {
+        const exchangeToken = httpsCallable(functions, "exchangePublicToken");
+        await exchangeToken({
+          public_token,
+          institution: metadata.institution,
+          accounts: metadata.accounts,
+        });
+        console.log("Token exchange complete:");
+        setIsConnected(true);
+      } catch (error) {
+        console.error("Error exchanging token:", error);
+      }
+    },
+    onExit: (error, metadata) => {
+      console.warn("User exited Plaid Link", error);
+      setShouldOpen(false);
+      setLinkToken(null); // Unmount this component, allowing future re-mount with fresh token
+    },
+  });
+
+  useEffect(() => {
+    if (shouldOpen && ready) {
+      open();
+      setShouldOpen(false);
+    }
+  }, [ready, shouldOpen, open, setShouldOpen]);
+
+  return null; // This component renders nothing visible
+};
 
 // Component
 const ProfileImage = ({ photoURL, handleButtonClick, fileInputRef, handleFileChange }) => {
@@ -212,6 +260,7 @@ const UserForm = ({ userData, onSave, photoURL }) => {
 }
 
 export default function Setting() {
+    const { currentUser } = useAuth();
     const [userData, setUserData] = useState(null);
     const [photoURL, setPhotoURL] = useState(
         "https://img.icons8.com/?size=100&id=7820&format=png&color=000000"
@@ -248,7 +297,6 @@ export default function Setting() {
                 const getUser = httpsCallable(functions, "getUser")
                 // httpsCallable  return an object {data: {actual data}}
                 const result = await getUser();
-                console.log("User profile", result.data);
                 setUserData(result.data)
             } catch (error) {
                 console.log("Failed to get user profile", error)
@@ -305,16 +353,12 @@ export default function Setting() {
 
                             <div>
                                 <p className="text-black text-xl font-bold">{userData?.fullName || ""}</p>
-                                <p>{userData.email}</p>
+                                <p>{userData.email || "No email"}</p>
                             </div>
                         </div>
                         <UserForm photoURL={photoURL} userData={userData} onSave={handleSave} />
 
-                        <div className="flex justify-between gap-2 items-center">
-                            <p className="text-black font-bold">Bank account</p>
-                            <p>No bank account connected</p>
-                            <PlaidInterface />
-                        </div>
+                        <PlaidInterface userUid={currentUser.uid} />
                     </main>
                 </ div>
             </div>
