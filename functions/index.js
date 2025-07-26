@@ -1,5 +1,6 @@
-const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {onCall, HttpsError, onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const {FieldValue} = require("firebase-admin/firestore")
 const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
 
 if (!admin.apps.length) {
@@ -76,14 +77,227 @@ exports.exchangePublicToken = onCall(async (request) => {
       throw new HttpsError("already-exists", "Bank already connected.");
     }
 
-    await plaidRef.add({accessToken, itemId})
+    await plaidRef.doc(itemId).set({accessToken, itemId})
 
-    return {success: true, message: "Token Exchange succefully"}
+    return {success: true, message: "Token Exchange succefully", itemId}
   } catch (error) {
     console.error("Plaid error:", error.response?.data || error.message || error);
     throw new HttpsError("internal", error.message || "Unknown error with Plaid");
   }
 })
+
+exports.getAccounts = onCall(async (request) => {
+  if (!request.auth) {
+      throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const itemId = request.data.itemId
+
+  try {
+    // Get access token from firestore
+    const plaidDocRef = await admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId);
+    
+    const plaidDoc = plaidDocRef.get();
+    
+    if (!plaidDoc.exists) {
+      throw new HttpsError("not-found", "Plaid item not found.");
+    }
+
+    const access_token = plaidDoc.data().accessToken;
+
+    // Call Plaid to get Accounts
+    const accountsResponse = await plaidClient.accountsGet({
+      access_token: access_token
+    })
+
+    // List of accounts
+    const accounts = accountsResponse.data.accounts;
+    console.log("List of Accounts:", accounts);
+
+    // Store accounts in Firestore
+    const batch = admin.firestore().batch();  // Used to write multiple documents at once
+    const accountsRef = plaidDocRef.collection("accounts")
+    
+    accounts.forEach(account => {
+      const docRef = accountsRef.doc(account.account_id);
+      batch.set(docRef, {
+        name: account.name,
+        official_name: account.official_name,
+        type: account.type,
+        subtype: account.subtype,
+        mask: account.mask,
+        balances: account.balances,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+
+    await batch.commit();
+
+    return { success: true, message: "Accounts synced" };
+  }
+  catch (error) {
+    console.log("syncAccounts erorr:", error);
+    throw new HttpsError("internal", "Fail to sync account.");
+  }
+})
+
+exports.getTransactions = onCall(async (request) => {
+  if (!request.auth) {
+      throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const itemId = request.data.itemId
+
+  try {
+    // Get access token from firestore
+    const plaidDocRef = await admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId);
+    
+    const plaidDoc = plaidDocRef.get();
+    
+    if (!plaidDoc.exists) {
+      throw new HttpsError("not-found", "Plaid item not found.");
+    }
+
+    const access_token = plaidDoc.data().accessToken;
+
+    const now = new Date();
+    const endDate = now.toISOString().split("T")[0]; // today
+    const start = new Date(now);
+    start.setMonth(start.getMonth() - 1); // past 1 month
+    const startDate = start.toISOString().split("T")[0];
+
+    // Call Plaid to get Accounts
+    const transactionsResponse = await plaidClient.transactionsGet({
+      access_token: access_token,
+      start_date: startDate,
+      end_date: endDate,
+    })
+
+    // List of transactions
+    const transactions = transactionsResponse.data.accounts;
+    console.log("List of Accounts:", accounts);
+
+    // Store accounts in Firestore
+    const batch = admin.firestore().batch();  // Used to write multiple documents at once
+    const transactionRef = plaidDocRef.collection("transactions")
+    
+    
+    for (const transaction of transactions) {
+      const txnRef = transactionRef.doc(transaction.transaction_id)
+      batch.set(txnRef, transaction);
+    }
+
+    await batch.commit();
+
+    return { success: true, message: "Accounts synced", count: transactions.length };
+  }
+  catch (error) {
+    console.log("getTransactions erorr:", error);
+    throw new HttpsError("internal", "Fail to get transactions.");
+  }
+})
+
+/**** 
+exports.plaidWebhook = onRequest(async (req, res) => {
+  const body = res.body;
+
+  try {
+    const webhookType = body.webhook_type;
+    const webhookCode = body.webhook_code;
+    const itemId = body.item_id;
+
+    console.log("Webhook received:", webhookType, webhookCode);
+
+    if (webhookType === "TRANSACTIONS" && webhookCode === "TRANSACTIONS_UPDATED") {
+      await handleTransactionsUpdated(itemId);
+    }
+
+    res.status(200).send("Webhook received");
+  } catch (err) {
+    console.error("❌ Webhook error:", err);
+    res.status(500).send("Error handling webhook");
+  }
+})
+
+async function handleTransactionsUpdated(itemId) {
+   // Find user that owns this itemId
+  const usersSnap = await admin.firestore().collection("users").get();
+
+  let userId = null;
+  for (const userDoc of usersSnap.docs) {
+    const plaidDoc = await userDoc.ref.collection("plaid").doc(itemId).get();
+    if (plaidDoc.exists) {
+      userId = userDoc.id;
+      break;
+    }
+  }
+
+  if (!userId) {
+    throw new Error(`Item ID ${itemId} not found under any user.`);
+  }
+  await syncTransactionsWithCursor(userId, itemId);
+}
+
+async function syncTransactionsWithCursor(uid, itemId) {
+  const itemDocRef = admin.firestore().collection("users").doc(uid).collection("plaid").doc(itemId);
+  const itemDoc = await itemDocRef.get();
+
+  if (!itemDoc.exists) {
+    throw new Error("Plaid Document not found");
+  }
+  
+  const { accessToken, cursor: savedCursor } = itemDoc.data();
+
+  let cursor = savedCursor || null;
+  let added = [], modified = [], removed = [];
+  let hasMore = true;
+
+  while (hasMore) {
+    const res = await plaidClient.transactionsSync({
+      access_token: accessToken,
+      cursor: cursor,
+    });
+
+    added.push(...res.data.added);
+    modified.push(...res.data.modified);
+    removed.push(...res.data.removed);
+
+    hasMore = res.data.has_more;
+    cursor = res.data.next_cursor;
+  }
+
+  const transactionRef = itemDocRef.collection("transactions");
+  const batch = admin.firestore().batch();
+
+  added.forEach(tx => {
+    const txDoc = transactionRef.doc(tx.transaction_id);
+    batch.set(txDoc, tx);
+  });
+
+  modified.forEach(tx => {
+    const txDoc = transactionRef.doc(tx.transaction_id);
+    batch.set(txDoc, tx, { merge: true });
+  });
+
+  removed.forEach(tx => {
+    const txDoc = transactionRef.doc(tx.transaction_id);
+    batch.delete(txDoc);
+  });
+
+  await batch.commit();
+  await itemDocRef.update({ cursor });
+}
+***/
 
 // Get all user data from firestore
 exports.getUser = onCall(async (request) => {
