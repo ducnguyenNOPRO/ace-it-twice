@@ -96,13 +96,13 @@ exports.getAccounts = onCall(async (request) => {
 
   try {
     // Get access token from firestore
-    const plaidDocRef = await admin.firestore()
+    const plaidDocRef = admin.firestore()
       .collection('users')
       .doc(uid)
       .collection('plaid')
       .doc(itemId);
     
-    const plaidDoc = plaidDocRef.get();
+    const plaidDoc = await plaidDocRef.get();
     
     if (!plaidDoc.exists) {
       throw new HttpsError("not-found", "Plaid item not found.");
@@ -117,6 +117,7 @@ exports.getAccounts = onCall(async (request) => {
 
     // List of accounts
     const accounts = accountsResponse.data.accounts;
+    const result = [];
     console.log("List of Accounts:", accounts);
 
     // Store accounts in Firestore
@@ -134,11 +135,12 @@ exports.getAccounts = onCall(async (request) => {
         balances: account.balances,
         updatedAt: FieldValue.serverTimestamp(),
       });
+      result.push(account);
     });
 
     await batch.commit();
 
-    return { success: true, message: "Accounts synced" };
+    return { success: true, message: "Accounts synced", result };
   }
   catch (error) {
     console.log("syncAccounts erorr:", error);
@@ -156,13 +158,13 @@ exports.getTransactions = onCall(async (request) => {
 
   try {
     // Get access token from firestore
-    const plaidDocRef = await admin.firestore()
+    const plaidDocRef = admin.firestore()
       .collection('users')
       .doc(uid)
       .collection('plaid')
       .doc(itemId);
     
-    const plaidDoc = plaidDocRef.get();
+    const plaidDoc = await plaidDocRef.get();
     
     if (!plaidDoc.exists) {
       throw new HttpsError("not-found", "Plaid item not found.");
@@ -184,18 +186,30 @@ exports.getTransactions = onCall(async (request) => {
     })
 
     // List of transactions
-    const transactions = transactionsResponse.data.accounts;
-    console.log("List of Accounts:", accounts);
+    const transactions = transactionsResponse.data.transactions;
 
     // Store accounts in Firestore
     const batch = admin.firestore().batch();  // Used to write multiple documents at once
     const transactionRef = plaidDocRef.collection("transactions")
     
     
-    for (const transaction of transactions) {
-      const txnRef = transactionRef.doc(transaction.transaction_id)
-      batch.set(txnRef, transaction);
-    }
+    transactions.forEach(transaction => {
+      const docRef = transactionRef.doc(transaction.transaction_id);
+      batch.set(docRef, {
+        transaction_id: transaction.transaction_id,
+        account_id: transaction.account_id, // match correct account
+        merchant_name: transaction.merchant_name,
+        logo_url: transaction.logo_url,  // merchange logo
+        amount: transaction.amount,
+        date: transaction.date,   // transaction occured
+        authorized_date: transaction.authorized_date,  // authorized by financial institution
+        personal_finance_category: transaction.personal_finance_category,
+        personal_finance_category_icon_url: transaction.personal_finance_category_icon_url,
+        pending: transaction.pending,
+        payment_channel: transaction.payment_channel,        
+        iso_currency_code: transaction.iso_currency_code,
+      });
+    });
 
     await batch.commit();
 

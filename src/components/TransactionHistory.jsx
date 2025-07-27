@@ -1,27 +1,34 @@
 import React from 'react'
 
-export default function Transaction() {
+export default function TransactionHistory({ transactions }) {
     return (
         <>
-            <div className="border border-gray-200 rounded-lg shadow-2xl p-6"> 
-                <h1 className="font-semibold text-xl text-black tracking-wider mb-6">Transaction history</h1>    
-                <div className="grid grid-cols-[2fr_2fr_2fr_1fr] gap-x-10 gap-y-5 ">
-                    {/* Header */}
-                    <div className="font-semibold">Reciever</div>
-                    <div className="font-semibold">Type</div>
-                    <div className="font-semibold">Date</div>
-                    <div className="font-semibold">Amount</div>
-                    {/* Row */}
-                    {[1, 2, 3].map((_, i) => (
-                        <React.Fragment className="flex justify-between items-center" key={i}>
-                            <div>Taco Bell</div>
-                            <div>Expense</div>
-                            <div>Jul 7, 2025</div>
-                            <div className="text-right text-red-500">-$120.00</div>
-                            <span className="col-span-4 h-px bg-gray-200 block"></span>
-                        </React.Fragment>
-                    ))}
-                </div>
+            <h1 className="font-semibold text-xl text-black tracking-wider mb-6">Transaction history</h1>    
+            <div className="grid grid-cols-[1fr_1.5fr_0.5fr] gap-x-5 gap-y-5 text-black ">
+                {/* Header */}
+                <div className="font-semibold">Merchant</div>
+                <div className="font-semibold">Category</div>
+                <div className="font-semibold">Amount</div>
+                {/* Row */}
+                {transactions.map((tx) => (
+                    <React.Fragment key={tx.transaction_id}>
+                        <div>{tx.merchant_name ?? "No Merchant"}</div>
+                        <div>
+                            <img
+                                src={tx.personal_finance_category_icon_url}
+                                className="w-5 h-5 inline-block align-middle mr-2"
+                            />
+                            <span className="text-[0.8rem] align-middle">{tx.personal_finance_category.primary}</span>
+                        </div>
+
+                        <div
+                            className={tx.amount > 0 ? "text-red-500" : "text-green-500"}
+                        >
+                            {tx.ammount > 0 ? `-$${tx.amount}` : `$${Math.abs(tx.amount)}`}
+                        </div>
+                        <span className="col-span-3 h-px bg-gray-200 block"></span>
+                    </React.Fragment>
+                ))}
             </div>
         </>
     )

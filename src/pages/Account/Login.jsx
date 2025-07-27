@@ -22,7 +22,7 @@ export default function Login() {
 
     useEffect(() => {
         if (!loading && currentUser) {
-            navigate('/dashboard')  // Go to dashboard if already logged in
+            navigate('/setting')  // Go to dashboard if already logged in
         }
     }, [currentUser, loading]) 
     
@@ -65,7 +65,7 @@ export default function Login() {
             setIsSigningIn(true)
             try {
                 await signInWithGoogle()
-                navigate('/Connect-bank')
+                navigate('/setting')
             } catch (error) {
                 console.error("Google sign-in failed:", error);
             } finally {
@@ -81,7 +81,7 @@ export default function Login() {
             setIsSigningIn(true)
             try {
                 await signInWithFacebook()
-                navigate('/Connect-bank')
+                navigate('/setting')
             } catch (error) {
                 console.error("Facebook sign-in failed:", error);
             } finally {
