@@ -32,8 +32,8 @@ const PlaidInterface = ({ userUid }) => {
   const fetchLinkToken = async () => {
     try {
       const createLinkToken = httpsCallable(functions, "createLinkToken");
-      const result = await createLinkToken();
-      console.log("✅ Link Token:", result.data.link_token);
+    const result = await createLinkToken();
+        
       setLinkToken(result.data.link_token);
       setShouldOpen(true);
     } catch (error) {
@@ -84,13 +84,15 @@ const PlaidLinkWrapper = ({
     onSuccess: async (public_token, metadata) => {
       try {
         const exchangeToken = httpsCallable(functions, "exchangePublicToken");
-        await exchangeToken({
+        const result = await exchangeToken({
           public_token,
           institution: metadata.institution,
           accounts: metadata.accounts,
         });
-        console.log("Token exchange complete:");
         setIsConnected(true);
+          
+        const getAccounts = httpsCallable(functions, "getAccounts");
+        await getAccounts({itemId: result.data.itemId});
       } catch (error) {
         console.error("Error exchanging token:", error);
       }
