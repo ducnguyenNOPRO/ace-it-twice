@@ -195,7 +195,7 @@ exports.getTransactions = onCall(async (request) => {
     
     transactions.forEach(transaction => {
       const docRef = transactionRef.doc(transaction.transaction_id);
-      batch.set(docRef, {
+      /*batch.set(docRef, {
         transaction_id: transaction.transaction_id,
         account_id: transaction.account_id, // match correct account
         merchant_name: transaction.merchant_name,
@@ -208,7 +208,8 @@ exports.getTransactions = onCall(async (request) => {
         pending: transaction.pending,
         payment_channel: transaction.payment_channel,        
         iso_currency_code: transaction.iso_currency_code,
-      });
+      }); */
+      batch.set(docRef, transaction);
     });
 
     await batch.commit();

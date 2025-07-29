@@ -5,9 +5,6 @@ import Card from '../../components/Card'
 import TransactionHistory from '../../components/TransactionHistory'
 import './Dashboard.css'
 import { useAuth } from '../../contexts/authContext'
-import { db, functions } from '../../firebase/firebase'
-import { collection, getDocs } from 'firebase/firestore'
-import { httpsCallable } from 'firebase/functions'
 import { useItemId } from '../../hooks/useItemId'
 import { useTransactions } from '../../hooks/useTransactions'
 import {useAccounts} from '../../hooks/useAccounts'
@@ -63,8 +60,7 @@ const TopCategories = () => {
 }
 
 
-export default function Dashboard() {
-          
+export default function Dashboard() {    
   const { currentUser } = useAuth();
   const { itemId, loadingItemId } = useItemId(currentUser.uid)
   const { transactions, loadingTransactions } = useTransactions(currentUser.uid, itemId);
@@ -85,7 +81,6 @@ export default function Dashboard() {
         <p className="text-gray-500">Loading...</p>
       </div>
     )
-
   }
 
   return (
@@ -100,34 +95,35 @@ export default function Dashboard() {
           <Topbar pageName='Dashboard' userFirstInitial={currentUser.displayName?.charAt(0)} />
 
           {/* Main Content */}
-          <div className="px-6">
+          <div className="px-6 mb-10">
             <div className="flex flex-wrap justify-between gap-6 w-full p-5 ">
-              <section className="border border-gray-200 rounded-lg shadow-2xl p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h1 className="font-semibold text-xl text-black tracking-wider">Card</h1>
-                  <div>
-                    <button
-                      onClick={handlePrev}
-                      title="Previous Card"
-                      className="font-semibold text-xl tracking-wider cursor-pointer mr-2">
-                      {"<"}
-                    </button>
-                    <button
-                      onClick={handleNext}
-                      title="Next Card"
-                      className="font-semibold text-xl tracking-wider cursor-pointer">
-                      {">"}
-                    </button>
-                  </div>
-                 
-                </div>
+
+              {/* Card Section */}
+              <section className="border border-gray-200 rounded-lg shadow-2xl p-5">
+                  <h1 className="mb-3 font-semibold text-xl text-black tracking-wider">Card</h1>
             
                 {/* Cards */}
                 {loadingAccounts
                   ? <p>Loading Transactions</p>
-                  : <Card account={accounts[currentIndex]} />
-                }
+                  :
+                  <div className="flex gap-x-1">
+                    <button
+                      onClick={handlePrev}
+                      title="Previous Card"
+                      className="font-semibold text-4xl text-blue-600 tracking-wider cursor-pointer">
+                      {"<"}
+                    </button>
 
+                    <Card account={accounts[currentIndex]} />
+
+                    <button
+                      onClick={handleNext}
+                      title="Next Card"
+                      className="font-semibold text-4xl text-blue-600 tracking-wider cursor-pointer">
+                      {">"}
+                    </button>
+                  </div>
+                }
               </section>
 
               {/* Charts */}
