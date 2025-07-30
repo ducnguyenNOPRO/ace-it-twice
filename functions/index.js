@@ -172,11 +172,13 @@ exports.getTransactions = onCall(async (request) => {
 
     const access_token = plaidDoc.data().accessToken;
 
-    const now = new Date();
-    const endDate = now.toISOString().split("T")[0]; // today
-    const start = new Date(now);
-    start.setMonth(start.getMonth() - 1); // past 1 month
-    const startDate = start.toISOString().split("T")[0];
+    const now = new Date();   // YYYY-MM-DD T HH:MM::SS
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(now.getMonth() - 6);
+
+    // Format as YYYY-MM-DD if needed (depends on your DB)
+    const startDate = sixMonthsAgo.toISOString().split("T")[0]; // e.g., "2025-01-30"
+    const endDate = now.toISOString().split("T")[0]; // e.g., "2025-07-30"
 
     // Call Plaid to get Accounts
     const transactionsResponse = await plaidClient.transactionsGet({

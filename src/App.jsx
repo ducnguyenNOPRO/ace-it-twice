@@ -9,6 +9,7 @@ import SpendingPlan from './pages/SpendingPlan'
 import Setting from './pages/Setting/Setting'
 import Goal from './pages/Goal'
 import ProtectedRoute from './components/ProtectRoute'
+import './App.css'
 
 function App() {
   return (

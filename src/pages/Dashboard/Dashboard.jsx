@@ -9,6 +9,8 @@ import { useAuth } from '../../contexts/authContext'
 import { useItemId } from '../../hooks/useItemId'
 import { useTransactions } from '../../hooks/useTransactions'
 import {useAccounts} from '../../hooks/useAccounts'
+import MonthlySpending from '../../components/Dashboard/MontlySpending'
+import { getMonthlySpendingData, getSpendingDataByCategory } from '../../util/spendingData'
 
 export default function Dashboard() {    
   const { currentUser } = useAuth();
@@ -16,6 +18,8 @@ export default function Dashboard() {
   const { transactions, loadingTransactions } = useTransactions(currentUser.uid, itemId);
   const { accounts, loadingAccounts } = useAccounts(currentUser.uid, itemId);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const monthlySpendingData = getMonthlySpendingData(transactions);
+  const categorySpendingData = getSpendingDataByCategory(transactions);
 
   const handlePrev = () => {
     setCurrentIndex(prev => (prev === 0 ? accounts.length - 1 : prev - 1));
@@ -54,7 +58,7 @@ export default function Dashboard() {
             
                 {/* Cards */}
                 {loadingAccounts
-                  ? <p>Loading Transactions</p>
+                  ? <p>Loading Bank Accounts</p>
                   :
                   <div className="flex gap-x-1">
                     <button
@@ -77,9 +81,10 @@ export default function Dashboard() {
               </section>
 
               {/* Charts */}
-              <div className="grow border border-gray-200 rounded-lg shadow-2xl p-6">
-                <p className="text-xl">Some Chart go here</p>
-              </div>
+              <section className="grow border border-gray-200 rounded-lg shadow-2xl py-6 px-5 h-70">
+                <h1 className="mb-3 font-semibold text-xl text-black tracking-wider">Monthly Spending</h1>
+                <MonthlySpending data={monthlySpendingData} />
+              </section>
             </div>
 
 
@@ -93,7 +98,7 @@ export default function Dashboard() {
               </div>
               {/* Top catogories */}
               <div className="grow border border-gray-200 rounded-lg shadow-2xl p-6">
-                <TopCategories transactions={transactions} />
+                <TopCategories data={categorySpendingData} />
               </div>
             </section>
 
