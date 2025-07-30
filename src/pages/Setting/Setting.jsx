@@ -8,7 +8,7 @@ import { useAuth } from "../../contexts/authContext";
 import Sidebar from "../../components/Sidebar/Sidebar";
 import Topbar from "../../components/Topbar";
 import { FaCameraRetro } from "react-icons/fa";
-import './Setting.css'
+import styles from './Setting.module.css'
 
 const PlaidInterface = ({ userUid }) => {
   const [linkToken, setLinkToken] = useState(null);
@@ -201,6 +201,7 @@ const UserForm = ({ userData, onSave, photoURL }) => {
                     value={formValues.fullName}
                     id="full-name"
                     name="fullName"
+                    className={styles.input}
                     placeholder={"Your Full Name"}
                     onChange={handleInputChange}
                 />
@@ -214,6 +215,7 @@ const UserForm = ({ userData, onSave, photoURL }) => {
                     value={formValues.preferedName}
                     id="prefered-name"
                     name="preferedName"
+                    className={styles.input}
                     placeholder="Your Prefered Name"
                     onChange={handleInputChange}
                 />
@@ -226,6 +228,7 @@ const UserForm = ({ userData, onSave, photoURL }) => {
                     id="gender"
                     name="gender"
                     value={formValues.gender}
+                    className={styles.input}
                     onChange={handleInputChange}
                 >
                     <option value="">Choose an option</option>
@@ -242,6 +245,7 @@ const UserForm = ({ userData, onSave, photoURL }) => {
                     id="language"
                     name="language"
                     value={formValues.language}
+                    className={styles.input}
                     onChange={handleInputChange}
                 >
                     <option value="">Choose an option</option>
