@@ -23,8 +23,8 @@ export default function TransactionHistory({ transactions }) {
             <div className="grid grid-cols-[1fr_auto_auto] gap-x-5 gap-y-5 text-black ">
                 {/* Column */}
                 <div className="font-semibold text-gray-400">Merchant</div>
-                <div className="font-semibold text-gray-400 bg-amber-600">Category</div>
-                <div className="font-semibold text-gray-400 bg-amber-200">Amount</div>
+                <div className="font-semibold text-gray-400">Category</div>
+                <div className="font-semibold text-gray-400">Amount</div>
                 {/* Row */}
                 {transactions.map((tx) => (
                     <React.Fragment key={tx.transaction_id}>
