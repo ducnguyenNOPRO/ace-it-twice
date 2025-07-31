@@ -173,11 +173,12 @@ exports.getTransactions = onCall(async (request) => {
     const access_token = plaidDoc.data().accessToken;
 
     const now = new Date();   // YYYY-MM-DD T HH:MM::SS
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(now.getMonth() - 6);
+    const aYearAgo = new Date();
+    aYearAgo.setMonth(now.getMonth() - 12);
 
     // Format as YYYY-MM-DD if needed (depends on your DB)
-    const startDate = sixMonthsAgo.toISOString().split("T")[0]; // e.g., "2025-01-30"
+    const startDate = aYearAgo.toISOString().split("T")[0]; // e.g., "2025-01-30"
+    console.log(startDate)
     const endDate = now.toISOString().split("T")[0]; // e.g., "2025-07-30"
 
     // Call Plaid to get Accounts
@@ -187,15 +188,48 @@ exports.getTransactions = onCall(async (request) => {
       end_date: endDate,
     })
 
-    // List of transactions
-    const transactions = transactionsResponse.data.transactions;
+    // List of accounts
+    const accountsMap = {};
+    for (const acc of transactionsResponse.data.accounts) {
+      accountsMap[acc.account_id] = {
+        name: acc.name,
+        mask: acc.mask
+      };
+    }
+
+    // Merge account data: name and mask to transaction data
+    const transactionsToSave = transactionsResponse.data.transactions.map(tx => {
+      const accountInfo = accountsMap[tx.account_id];
+      return {
+        transaction_id: tx.transaction_id,
+        name: tx.name,
+        merchant_name: tx.merchant_name,
+        amount: tx.amount,
+        iso_currency_code: tx.iso_currency_code,
+        counterparties: tx.counterparties,
+        date: tx.date,
+        datetime: tx.datetime,
+        authorized_date: tx.authorized_date,
+        authorized_datetime: tx.authorized_datetime,
+        location: tx.location,
+        logo_url: tx.logo_url,
+        pending: tx.pending,
+        personal_finance_category: tx.personal_finance_category,
+        personal_finance_category_icon_url: tx.personal_finance_category_icon_url,
+        account_id: tx.account_id,
+
+        // merged account info:
+        account_name: accountInfo.name || "Unknown",
+        account_mask: accountInfo.mask || "****",
+      }
+    })
 
     // Store accounts in Firestore
     const batch = admin.firestore().batch();  // Used to write multiple documents at once
     const transactionRef = plaidDocRef.collection("transactions")
     
     
-    transactions.forEach(transaction => {
+    transactionsToSave.forEach(transaction => {
       const docRef = transactionRef.doc(transaction.transaction_id);
       /*batch.set(docRef, {
         transaction_id: transaction.transaction_id,
@@ -216,7 +250,7 @@ exports.getTransactions = onCall(async (request) => {
 
     await batch.commit();
 
-    return { success: true, message: "Accounts synced", count: transactions.length };
+    return { success: true, message: "Accounts synced", count: transactionsToSave.length };
   }
   catch (error) {
     console.log("getTransactions erorr:", error);

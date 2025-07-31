@@ -49,7 +49,7 @@ export default function Dashboard() {
           <Topbar pageName='Dashboard' userFirstInitial={currentUser.displayName?.charAt(0)} />
 
           {/* Main Content */}
-          <div className="px-6 mb-10">
+          <main className="px-6 mb-10">
             <div className="flex flex-wrap justify-between gap-6 w-full p-5 ">
 
               {/* Card Section */}
@@ -82,7 +82,7 @@ export default function Dashboard() {
 
               {/* Charts */}
               <section className="grow border border-gray-200 rounded-lg shadow-2xl py-6 px-5 h-70">
-                <h1 className="mb-3 font-semibold text-xl text-black tracking-wider">Monthly Spending</h1>
+                <h1 className="font-semibold text-xl text-black tracking-wider">Monthly Spending</h1>
                 <MonthlySpending data={monthlySpendingData} />
               </section>
             </div>
@@ -90,19 +90,19 @@ export default function Dashboard() {
 
             <section className="flex flex-wrap gap-6 w-full p-5">
               {/* Transaction History */}
-              <div className="border border-gray-200 rounded-lg shadow-2xl p-6"> 
+              <div className="w-fit lg:w-1/2 border border-gray-200 rounded-lg shadow-2xl p-6"> 
                 {loadingTransactions
                   ? <p>Loading Transactions</p>  
                   : <TransactionHistory transactions={transactions.slice(0,3)} />
                 }  
               </div>
               {/* Top catogories */}
-              <div className="grow border border-gray-200 rounded-lg shadow-2xl p-6">
+              <div className="grow md:w-fit border-gray-200 rounded-lg shadow-2xl p-6">
                 <TopCategories data={categorySpendingData} />
               </div>
             </section>
 
-          </div>
+          </main>
 
         </div>
       </div>

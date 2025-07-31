@@ -20,23 +20,33 @@ export default function TransactionHistory({ transactions }) {
                     </Link>                 
             </div>
  
-            <div className="grid grid-cols-[1.5fr_1fr_0.5fr] gap-x-10 gap-y-5 text-black ">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-x-5 gap-y-5 text-black ">
                 {/* Column */}
                 <div className="font-semibold text-gray-400">Merchant</div>
-                <div className="font-semibold text-gray-400">Category</div>
-                <div className="font-semibold text-gray-400">Amount</div>
+                <div className="font-semibold text-gray-400 bg-amber-600">Category</div>
+                <div className="font-semibold text-gray-400 bg-amber-200">Amount</div>
                 {/* Row */}
                 {transactions.map((tx) => (
                     <React.Fragment key={tx.transaction_id}>
                         {/* Merchant Name: allow wrapping */}
-                        <div className="overflow-hidden truncate">
-                            {tx.merchant_name || tx.name}
+                        <div className="flex items-center gap-1.5 overflow-hidden">
+                            {/* Merchant name should shrink only when necessary */}
+                            <span className="truncate" title={tx.merchant_name || tx.name}>
+                                {tx.merchant_name || tx.name}
+                            </span>
+
+                            {/* Account name + mask should truncate first */}
+                            <span 
+                                className="text-gray-400 text-sm font-medium truncate"
+                                title={`${tx.account_name} • ${tx.account_mask}`}>
+                                {tx.account_name} • {tx.account_mask}
+                            </span>
                         </div>
 
                         {/* Category pill: force single line, ellipsis if too long */}
                             {/* Background and text color */}
                         <div
-                            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 max-w-full sm:w-fit whitespace-nowrap overflow-hidden
+                            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 sm:w-fit overflow-hidden
                                 ${prettyMapCategory[tx.personal_finance_category.primary].color ??  prettyMapCategory.OTHER.color}
                             `}
                             title={prettyMapCategory[tx.personal_finance_category.primary].name ?? prettyMapCategory.OTHER.name} // optional tooltip
@@ -46,9 +56,10 @@ export default function TransactionHistory({ transactions }) {
                                 src={prettyMapCategory[tx.personal_finance_category.primary].icon
                                     || "../../public/icons/badge-question-imark.svg"}
                                 alt="Category Icon"
+                                className="m-auto"
                             />
                             {/* Category Name */}
-                            <span className="text-sm font-bold truncate">
+                            <span className="text-sm font-bold sm:truncate hidden md:inline">
                                 {prettyMapCategory[tx.personal_finance_category.primary].name || "Other"}
                             </span>
                         </div>    
