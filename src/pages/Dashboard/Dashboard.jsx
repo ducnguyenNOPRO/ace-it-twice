@@ -1,64 +1,16 @@
 import React, { useState, useEffect } from 'react'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar'
-import Card from '../../components/Card'
+import Card from '../../components/Dashboard/Card'
+import TopCategories from '../../components/Dashboard/TopCategories'
 import TransactionHistory from '../../components/TransactionHistory'
 import './Dashboard.css'
 import { useAuth } from '../../contexts/authContext'
 import { useItemId } from '../../hooks/useItemId'
 import { useTransactions } from '../../hooks/useTransactions'
 import {useAccounts} from '../../hooks/useAccounts'
-
-
-const TopCategories = () => {
-  const topCategories = [
-  { name: "Food", amount: 420, percentage: 42, color: "bg-red-400" },
-  { name: "Transport", amount: 250, percentage: 25, color: "bg-yellow-400" },
-  { name: "Entertainment", amount: 180, percentage: 42, color: "bg-blue-400" },
-];
-  return (
-    <>
-      <div className="border border-gray-200 rounded-lg shadow-2xl p-6"> 
-        <h1 className="font-semibold text-xl text-black tracking-wider mb-6">Top categories</h1>
-        <select className="text-md font-semibold border rounded px-2 py-1">
-          <option>This month</option>
-          <option>Last month</option>
-          <option>Last year</option>
-        </select>
-
-        <div className="mt-5 grid grid-cols-[0.5fr_80px_1fr] gap-5">
-          {topCategories.map((cat, i) => (
-            <React.Fragment key={i}>
-              {/* Icon + Name */}
-              <div className="flex items-center gap-2">
-                <span className={`w-3 h-3 rounded-full ${cat.color}`}></span>
-                <span>{cat.name}</span>
-              </div>
-
-              {/* Amount */}
-              <div className="text-md font-medium text-gray-700 text-right">
-                ${cat.amount}
-              </div>
-
-              {/* Progress bar */}
-              <div className="flex items-center">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full ${cat.color}`}
-                    style={{ width: `${cat.percentage}%` }}
-                  ></div>
-                </div>
-              </div>
-            </React.Fragment>
-          ))}
-        </div>
-
-      </div>
-          
-    </>
-  )
-}
-
+import MonthlySpending from '../../components/Dashboard/MontlySpending'
+import { getMonthlySpendingData, getSpendingDataByCategory } from '../../util/spendingData'
 
 export default function Dashboard() {    
   const { currentUser } = useAuth();
@@ -66,6 +18,8 @@ export default function Dashboard() {
   const { transactions, loadingTransactions } = useTransactions(currentUser.uid, itemId);
   const { accounts, loadingAccounts } = useAccounts(currentUser.uid, itemId);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const monthlySpendingData = getMonthlySpendingData(transactions);
+  const categorySpendingData = getSpendingDataByCategory(transactions);
 
   const handlePrev = () => {
     setCurrentIndex(prev => (prev === 0 ? accounts.length - 1 : prev - 1));
@@ -95,7 +49,7 @@ export default function Dashboard() {
           <Topbar pageName='Dashboard' userFirstInitial={currentUser.displayName?.charAt(0)} />
 
           {/* Main Content */}
-          <div className="px-6 mb-10">
+          <main className="px-6 mb-10">
             <div className="flex flex-wrap justify-between gap-6 w-full p-5 ">
 
               {/* Card Section */}
@@ -104,7 +58,7 @@ export default function Dashboard() {
             
                 {/* Cards */}
                 {loadingAccounts
-                  ? <p>Loading Transactions</p>
+                  ? <p>Loading Bank Accounts</p>
                   :
                   <div className="flex gap-x-1">
                     <button
@@ -127,27 +81,28 @@ export default function Dashboard() {
               </section>
 
               {/* Charts */}
-              <div className="grow border border-gray-200 rounded-lg shadow-2xl p-6">
-                <p className="text-xl">Some Chart go here</p>
-              </div>
+              <section className="grow border border-gray-200 rounded-lg shadow-2xl py-6 px-5 h-70">
+                <h1 className="font-semibold text-xl text-black tracking-wider">Monthly Spending</h1>
+                <MonthlySpending data={monthlySpendingData} />
+              </section>
             </div>
 
 
             <section className="flex flex-wrap gap-6 w-full p-5">
               {/* Transaction History */}
-              <div className="border border-gray-200 rounded-lg shadow-2xl p-6"> 
+              <div className="w-fit lg:w-1/2 border border-gray-200 rounded-lg shadow-2xl p-6"> 
                 {loadingTransactions
                   ? <p>Loading Transactions</p>  
                   : <TransactionHistory transactions={transactions.slice(0,3)} />
                 }  
               </div>
               {/* Top catogories */}
-              <div className="grow">
-                <TopCategories />
+              <div className="grow md:w-fit border-gray-200 rounded-lg shadow-2xl p-6">
+                <TopCategories data={categorySpendingData} />
               </div>
             </section>
 
-          </div>
+          </main>
 
         </div>
       </div>

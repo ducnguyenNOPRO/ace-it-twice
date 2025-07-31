@@ -1,6 +1,4 @@
-input[type="text"],
-input[type="email"],
-select{
+.input{
     width: 100%;
     padding: 10px;
     border-radius: 6px;
@@ -9,7 +7,7 @@ select{
     color: black;
 }
 
-label{
+.label{
     display: block;
     color: black;
     font-weight: medium;

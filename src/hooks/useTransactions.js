@@ -26,7 +26,9 @@ export const useTransactions = (uid, itemId) => {
                         id: doc.id,
                         ...doc.data(),
                     }));
-                
+                    
+                    // Sort recent to oldest
+                    data.sort((a, b) => b.date.localeCompare(a.date));
                     setTransactions(data);
                 } else {
                     throw new Error("No transactions docs found");
