@@ -25,7 +25,6 @@ export const useItemId = (uid) => {
                 setLoadingItemId(false);
             }
         }
-
         fetchItemId();
     }, [uid])
 

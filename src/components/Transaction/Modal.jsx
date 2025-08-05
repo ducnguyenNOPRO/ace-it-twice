@@ -6,24 +6,34 @@ import React, { useState, useEffect } from "react"
 import MenuItem from "@mui/material/MenuItem"
 import DialogActions from "@mui/material/DialogActions"
 import Button from "@mui/material/Button"
+import prettyMapCategory from "../../constants/prettyMapCategory"
 
-export default function EditTransactionModal({open, onClose, transaction}) {
+export default function EditTransactionModal({ open, onClose, transaction }) {
+    console.log('Modal received transaction:', transaction); // ← Add this debug
     const [formData, setFormData] = useState({
+        account: '',
+        date: '',
         merchant_name: '',
         category: '',
         amount: '',
         notes: ''
     })
+
+    const handleInputChange = () => {
+
+    }
     useEffect(() => {
         if (transaction) {
             setFormData({
+                account: transaction.account || '',
+                date: transaction.date || '',
                 merchant_name: transaction.merchant_name || '',
-                category: transaction.category,
+                category: prettyMapCategory[transaction.category].name,
                 amount: transaction.amount,
                 notes: transaction.notes || ''
-            }, [transaction])
+            })
         }
-    })
+    }, [transaction])
     return (
         <Dialog
             open={open}
@@ -34,22 +44,43 @@ export default function EditTransactionModal({open, onClose, transaction}) {
                 <TextField
                     fullWidth
                     margin="normal"
-                    label="Merchant Name"
-                    name="merchant_name"
-                    value={formData.merchant_name}
+                    label="Account"
+                    name="account"
+                    value={formData.account}
+                    onChange={handleInputChange}
+                />
+                <TextField
+                    fullWidth
+                    type="date"
+                    margin="normal"
+                    label="Date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleInputChange}
                 />
                 <TextField
                     fullWidth
                     margin="normal"
+                    label="Merchant Name"
+                    name="merchant_name"
+                    value={formData.merchant_name}
+                    onChange={handleInputChange}
+                />
+                <TextField
+                    fullWidth
+                    select
+                    margin="normal"
                     label="Category"
                     name="category"
                     value={formData.category}
+                    onChange={handleInputChange}
                 >
-                    {['Food', 'Shopping', 'Utilities', 'Travel', 'Other'].map((cat) => (
-                        <MenuItem key={cat} value={cat}>
-                            {cat}
-                        </MenuItem>
-                    ))}
+                    <MenuItem value="Shopping">Shopping</MenuItem>
+                    <MenuItem value="Food">Food</MenuItem>
+                    <MenuItem value="Transportation">Transportation</MenuItem>
+                    <MenuItem value="Utilities">Utilities</MenuItem>
+                    <MenuItem value="Entertainment">Entertainment</MenuItem>
+                    <MenuItem value="Other">Other</MenuItem>
                 </TextField>
                 <TextField
                     fullWidth
