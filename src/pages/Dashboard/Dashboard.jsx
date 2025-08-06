@@ -6,17 +6,17 @@ import TopCategories from '../../components/Dashboard/TopCategories'
 import TransactionHistory from '../../components/TransactionHistory'
 import './Dashboard.css'
 import { useAuth } from '../../contexts/authContext'
-import { useItemId } from '../../hooks/useItemId'
-import { useTransactions } from '../../hooks/useTransactions'
 import {useAccounts} from '../../hooks/useAccounts'
 import MonthlySpending from '../../components/Dashboard/MontlySpending'
 import { getMonthlySpendingData, getSpendingDataByCategory } from '../../util/spendingData'
+import { useTransaction } from '../../contexts/TransactionContext'
+import { useItemId } from '../../hooks/useItemId'
 
 export default function Dashboard() {    
   const { currentUser } = useAuth();
-  const { itemId, loadingItemId } = useItemId(currentUser.uid)
-  const { transactions, loadingTransactions } = useTransactions(currentUser.uid, itemId);
+  const { itemId } = useItemId(currentUser.uid);
   const { accounts, loadingAccounts } = useAccounts(currentUser.uid, itemId);
+  const { transactions, loading } = useTransaction();
   const [currentIndex, setCurrentIndex] = useState(0);
   const monthlySpendingData = getMonthlySpendingData(transactions);
   const categorySpendingData = getSpendingDataByCategory(transactions);
@@ -29,7 +29,7 @@ export default function Dashboard() {
     setCurrentIndex(prev => (prev === accounts.length - 1 ? 0 : prev + 1));
   }
 
-  if (loadingItemId) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
         <p className="text-gray-500">Loading...</p>
@@ -91,10 +91,7 @@ export default function Dashboard() {
             <section className="flex flex-wrap gap-6 w-full p-5">
               {/* Transaction History */}
               <div className="w-fit lg:w-1/2 border border-gray-200 rounded-lg shadow-2xl p-6"> 
-                {loadingTransactions
-                  ? <p>Loading Transactions</p>  
-                  : <TransactionHistory transactions={transactions.slice(0,3)} />
-                }  
+                <TransactionHistory transactions={transactions.slice(0,3)} />  
               </div>
               {/* Top catogories */}
               <div className="grow md:w-fit border-gray-200 rounded-lg shadow-2xl p-6">
