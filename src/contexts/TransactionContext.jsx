@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, onSnapshot } from "firebase/firestore";
 import { db, functions } from "../firebase/firebase";
 import { httpsCallable } from "firebase/functions";
 import { useAuth } from "./authContext";
@@ -38,31 +38,65 @@ export const TransactionProvider = ({ children }) => {
     useEffect(() => {
         if (!uid || !itemId) return;
 
-        const fetchTransactions = async () => {
+        const initializeTransactions = async () => {
             try {
-                const getTransactions = httpsCallable(functions, "getTransactions");
-                await getTransactions({ itemId });
+                const transactionRef = collection(db, 'users', uid, 'plaid', itemId, 'transactions');
+                const snapshot = await getDocs(transactionRef);
 
-                const ref = collection(db, "users", uid, "plaid", itemId, "transactions");
-                const snap = await getDocs(ref);
-                const data = snap.docs.map((doc) => ({
+                if (snapshot.empty) {
+                    console.log("No transactions found, fetching from Plaid...");
+                    const getTransactions = httpsCallable(functions, "getTransactions");
+                    await getTransactions({ itemId });
+                } else {
+                    console.log("Transaction already exist, skipping Plaid call");
+                }
+            } catch (error) {
+                console.error("Error calling getTransactions:", error);
+            }
+        }
+
+        // TODO: Remove this call when webhook sync is implemented
+        initializeTransactions();
+
+        const transactionRef = collection(db, 'users', uid, 'plaid', itemId, 'transactions');
+
+        const unsubscribe = onSnapshot(
+            transactionRef,
+            (snapshot) => {
+                const data = snapshot.docs.map((doc) => ({
                     id: doc.id,
                     ...doc.data(),
-                }));
+                }))
                 data.sort((a, b) => b.date.localeCompare(a.date));
                 setTransactions(data);
-            } catch (error) {
-                console.error("Error loading transactions:", error);
-            } finally {
+                setLoading(false);
+            },
+            (error) => {
+                console.log("Error loading transaction:", error);
                 setLoading(false);
             }
-        };
+        )
 
-        fetchTransactions();
+        return () => unsubscribe();
     }, [uid, itemId]);
 
+    // Manually refresh for lated data
+    const refreshTransactions = async () => {
+        if (!itemId) return;
+
+        try {
+            setLoading(true);
+            const getTransactions = httpsCallable(functions, "getTransactions");
+            await getTransactions({ itemId });
+            // OnSnapShot will autimatically pick up the new data
+        } catch (error) {
+            console.log("Error refreshing transaction:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
     return (
-        <TransactionContext.Provider value={{ itemId, transactions, loading }}>
+        <TransactionContext.Provider value={{ itemId, transactions, loading, refreshTransactions }}>
             {!loading && children}
         </TransactionContext.Provider>
     )

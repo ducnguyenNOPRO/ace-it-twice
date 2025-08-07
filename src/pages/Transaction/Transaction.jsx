@@ -42,7 +42,6 @@ export default function Transaction() {
 
   // Memorie function
   const handleOpenEditModal = useCallback((row) => {
-    console.log('Opening edit modal with row:', row); // ← Add this debug
     setSelectedTx(row);
     setIsModalOpen(true);
   }, []);  // Function stay the same
@@ -117,12 +116,13 @@ export default function Transaction() {
   // Format rows only when transactions change (not on every render)
   const formattedRows = useMemo(() => {
     return transactions.map((tx) => ({
-      id: tx.transaction_id,
+      id: tx.id,
       merchant_name: tx.merchant_name || tx.name,
       amount: tx.amount,
       date: tx.date,
       category: tx.personal_finance_category?.primary || 'Uncategorized',
       account: `${tx.account_name}`,
+      mask: tx.account_mask
     }));
   }, [transactions]);
 
@@ -221,7 +221,7 @@ export default function Transaction() {
                     }}
                     pageSizeOptions={[5, 10, 25, { value: -1, label: 'All' }]}
                 />
-                    </div>
+                </div>
                     <EditTransactionModal
                       open={isModalOpen}
                       onClose={handleCloseModal}
