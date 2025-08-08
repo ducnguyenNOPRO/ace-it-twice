@@ -2,6 +2,7 @@ const {onCall, HttpsError, onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const {FieldValue} = require("firebase-admin/firestore")
 const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
+const prettyMapCategory = require('./constants/prettyMapCategory')
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -206,17 +207,16 @@ exports.getTransactions = onCall(async (request) => {
         merchant_name: tx.merchant_name,
         amount: tx.amount,
         iso_currency_code: tx.iso_currency_code,
-        counterparties: tx.counterparties,
         date: tx.date,
-        datetime: tx.datetime,
-        authorized_date: tx.authorized_date,
-        authorized_datetime: tx.authorized_datetime,
+        //datetime: tx.datetime,
+        //authorized_date: tx.authorized_date,
+        //authorized_datetime: tx.authorized_datetime,
         location: tx.location,
         logo_url: tx.logo_url,
         pending: tx.pending,
-        personal_finance_category: tx.personal_finance_category,
-        personal_finance_category_icon_url: tx.personal_finance_category_icon_url,
+        category: prettyMapCategory[tx.personal_finance_category.primary],
         account_id: tx.account_id,
+        notes: '',
 
         // merged account info:
         account_name: accountInfo.name || "Unknown",
@@ -231,20 +231,6 @@ exports.getTransactions = onCall(async (request) => {
     
     transactionsToSave.forEach(transaction => {
       const docRef = transactionRef.doc(transaction.transaction_id);
-      /*batch.set(docRef, {
-        transaction_id: transaction.transaction_id,
-        account_id: transaction.account_id, // match correct account
-        merchant_name: transaction.merchant_name,
-        logo_url: transaction.logo_url,  // merchange logo
-        amount: transaction.amount,
-        date: transaction.date,   // transaction occured
-        authorized_date: transaction.authorized_date,  // authorized by financial institution
-        personal_finance_category: transaction.personal_finance_category,
-        personal_finance_category_icon_url: transaction.personal_finance_category_icon_url,
-        pending: transaction.pending,
-        payment_channel: transaction.payment_channel,        
-        iso_currency_code: transaction.iso_currency_code,
-      }); */
       batch.set(docRef, transaction);
     });
 
@@ -410,3 +396,16 @@ exports.updateUser = onCall(async (request) => {
     throw new HttpsError("internal", "Fail to update user")
   }
 })
+
+/*xports.editTransaction = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const txData = request.data;
+
+  try {
+    
+  }
+}) */

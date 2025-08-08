@@ -11,6 +11,7 @@ import Goal from './pages/Goal'
 import ProtectedRoute from './components/ProtectRoute'
 import './App.css'
 import { TransactionProvider } from './contexts/TransactionContext'
+import { AccountProvider } from './contexts/AccountContext'
 import { useAuth } from './contexts/authContext'
 
 function App() {
@@ -26,14 +27,18 @@ function App() {
         <Route path="/Dashboard" element={
           <ProtectedRoute>
             <TransactionProvider>
-              <Dashboard />
+              <AccountProvider>
+                <Dashboard />
+              </AccountProvider>
             </TransactionProvider>
           </ProtectedRoute>}
         />
         <Route path="/Transaction" element={
           <ProtectedRoute>
             <TransactionProvider>
-              <Transaction/>
+              <AccountProvider >
+                <Transaction />
+              </AccountProvider>
             </TransactionProvider>
           </ProtectedRoute>}
         />

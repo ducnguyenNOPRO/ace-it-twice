@@ -6,7 +6,7 @@ import TopCategories from '../../components/Dashboard/TopCategories'
 import TransactionHistory from '../../components/TransactionHistory'
 import './Dashboard.css'
 import { useAuth } from '../../contexts/authContext'
-import {useAccounts} from '../../hooks/useAccounts'
+import { useAccount } from '../../contexts/AccountContext'
 import MonthlySpending from '../../components/Dashboard/MontlySpending'
 import { getMonthlySpendingData, getSpendingDataByCategory } from '../../util/spendingData'
 import { useTransaction } from '../../contexts/TransactionContext'
@@ -15,11 +15,11 @@ import { useItemId } from '../../hooks/useItemId'
 export default function Dashboard() {    
   const { currentUser } = useAuth();
   const { itemId } = useItemId(currentUser.uid);
-  const { accounts, loadingAccounts } = useAccounts(currentUser.uid, itemId);
+  const { accounts, loadingAccounts } = useAccount();
   const { transactions, loading } = useTransaction();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const monthlySpendingData = getMonthlySpendingData(transactions);
-  const categorySpendingData = getSpendingDataByCategory(transactions);
+  const monthlySpendingData = getMonthlySpendingData(transactions);  // { "MMM YYYY", totalSpending: int}
+  const categorySpendingData = getSpendingDataByCategory(transactions);  // {totalSpending: int, sortedCategories[{total, icon, color}]}
 
   const handlePrev = () => {
     setCurrentIndex(prev => (prev === 0 ? accounts.length - 1 : prev - 1));

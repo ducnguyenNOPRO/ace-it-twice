@@ -1,5 +1,4 @@
 import React from "react";
-import prettyMapCategory from "../../constants/prettyMapCategory";
 
 export default function TopCategories({data}) {
     return (

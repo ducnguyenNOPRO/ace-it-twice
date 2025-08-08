@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useRef, useMemo, useCallback } from 'react'
 import { useAuth } from '../../contexts/authContext'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar'
@@ -10,22 +10,25 @@ import { IoSearchSharp, IoAddCircleSharp} from 'react-icons/io5'
 import { useTransaction } from '../../contexts/TransactionContext'
 import prettyMapCategory from '../../constants/prettyMapCategory'
 
-// Custom hook for debounced input value
-function useDebounce(value, delay) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
+// Memoized category cell component to prevent re-renders
+const CategoryCell = React.memo(({ value }) => (
+  <div className="flex justify-start items-center h-full w-full">
+    <div
+      title={value ?? prettyMapCategory.Other.name}
+      className={`flex items-center gap-2 rounded-full px-3 py-1 overflow-hidden
+        ${prettyMapCategory[value]?.color ?? prettyMapCategory.Other.color}
+      `}>
+      <img
+        src={prettyMapCategory[value]?.icon || "../../public/icons/badge-question-imark.svg"}
+        alt="Category Icon"
+      />
+      <span className="text-sm font-bold sm:truncate hidden md:inline">
+        {value || "Other"}
+      </span>
+    </div>
+  </div>
+));
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    }
-  }, [value, delay])
-
-  return debouncedValue;
-}
 
 export default function Transaction() {
   console.log("Transaction rendered")
@@ -33,12 +36,10 @@ export default function Transaction() {
   const { transactions } = useTransaction();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState(null);
-  const [searchInput, setSearchInput] = useState('');
+  const searchInput = useRef('');
   const [selectedRowCount, setSelectedRowCount] = useState(0);
   const [selectedRowIds, setSelectedRowIds] = useState([]);
 
-  // Debounce search input to avoid excessive filtering
-  const debouncedSearchInput = useDebounce(searchInput, 300)
 
   // Memorie function
   const handleOpenEditModal = useCallback((row) => {
@@ -67,22 +68,7 @@ export default function Transaction() {
       field: 'category',
       headerName: 'Category',
       renderCell: (params) => (
-        <div className="flex justify-start items-center h-full w-full"> {/* ← Center wrapper */}
-          <div
-            title={prettyMapCategory[params.value].name ?? prettyMapCategory.OTHER.name}
-            className={`flex items-center gap-2 rounded-full px-3 py-1 overflow-hidden
-              ${prettyMapCategory[params.value].color ?? prettyMapCategory.OTHER.color}
-            `}>
-            <img
-              src={prettyMapCategory[params.value].icon
-                || "../../public/icons/badge-question-imark.svg"}
-              alt="Category Icon"
-            />
-            <span className="text-sm font-bold sm:truncate hidden md:inline">
-              {prettyMapCategory[params.value].name || "Other"}
-            </span>
-          </div>
-        </div>
+        <CategoryCell value={params.value} />
       ),
       flex: 1,
   },
@@ -112,42 +98,28 @@ export default function Transaction() {
     )
   }
   ], [handleOpenEditModal, handleDeleteTransaction]);
-  
-  // Format rows only when transactions change (not on every render)
+
   const formattedRows = useMemo(() => {
+    if (!transactions || transactions.length === 0) return [];
+    
     return transactions.map((tx) => ({
       id: tx.id,
+      transaction_id: tx.transaction_id,
+      account_id: tx.account_id,
       merchant_name: tx.merchant_name || tx.name,
       amount: tx.amount,
       date: tx.date,
-      category: tx.personal_finance_category?.primary || 'Uncategorized',
+      category: tx.category || 'Other',
       account: `${tx.account_name}`,
-      mask: tx.account_mask
+      mask: tx.account_mask,
+      notes: tx.notes,
     }));
   }, [transactions]);
-
-  const filteredRows = useMemo(() => {
-    if (!debouncedSearchInput.trim()) {
-      return formattedRows;  // Return same rows
-    }
-
-    const searchTerm = debouncedSearchInput.toLowerCase().trim();
-
-    return formattedRows.filter((row) => {
-      return (
-        row.merchant_name?.toLowerCase().includes(searchTerm) ||
-        row.category?.toLowerCase().includes(searchTerm) ||
-        row.account?.toLowerCase().includes(searchTerm) ||
-        row.date?.toLowerCase().includes(searchTerm) ||
-        row.amount?.toString().includes(searchTerm)
-      )
-    })
-  }, [formattedRows, debouncedSearchInput])
 
   // Memoize row selection handler
   const handleRowSelectionChange = useCallback((newSelection) => {
     let ids = [];
-    // newSelection.ids is type
+    // newSelection.ids is type Set
     if (newSelection?.type === 'include') {
       setSelectedRowCount(newSelection.ids.size);
       setSelectedRowIds(Array.from(newSelection.ids)); // Convert Set to Array
@@ -155,16 +127,12 @@ export default function Transaction() {
     }
     if (newSelection?.type === 'exclude') {
       const excluded = newSelection.ids || new Set();
-      ids = filteredRows.filter(row => !excluded.has(String(row.id))).map(row => row.id);
+      ids = transactions.filter(row => !excluded.has(String(row.id))).map(row => row.id);
     }
     setSelectedRowIds(ids);
     setSelectedRowCount(ids.length);
-  }, [filteredRows]) // same function
+  }, [transactions]) // same function
 
-  // Memoize search input handler
-  const handleSearchInputChange = useCallback((e) => {
-    setSearchInput(e.target.value);
-  }, [])  // same function
     return (
       <>
         <div className="flex h-screen text-gray-500">
@@ -184,8 +152,6 @@ export default function Transaction() {
                   <IoSearchSharp className="absolute top-1/2 left-2 transform -translate-y-1/2" />
                   <input 
                     id="searchTransaction"
-                    value={searchInput}
-                    onChange={handleSearchInputChange}
                     placeholder="Search for a transaction"
                     className="w-full pl-8 py-1 tracking-wider text-md text-black bg-white border-2 border-gray-300 rounded-md "
                   />
@@ -209,24 +175,26 @@ export default function Transaction() {
             <section>
                 <div className="w-full">
                   <DataGrid
-                    rows={filteredRows}
+                    rows={formattedRows}
                     columns={columns}
                     disableColumnResize={true}
                     checkboxSelection
                     onRowSelectionModelChange={handleRowSelectionChange}
                     disableRowSelectionOnClick
-                    loading={!filteredRows}
+                    loading={!transactions}
                     initialState={{
-                      pagination: { paginationModel: { pageSize: 5 } },
+                      pagination: { paginationModel: { pageSize: 25 } },
                     }}
                     pageSizeOptions={[5, 10, 25, { value: -1, label: 'All' }]}
                 />
-                </div>
-                    <EditTransactionModal
-                      open={isModalOpen}
-                      onClose={handleCloseModal}
-                      transaction={selectedTx}
-                    />
+              </div>
+              {isModalOpen && 
+                <EditTransactionModal
+                  open={isModalOpen}
+                  onClose={handleCloseModal}
+                  transaction={selectedTx}
+                />
+              }
             </section>
           </div>
         </div>

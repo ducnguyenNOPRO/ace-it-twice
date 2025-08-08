@@ -26,18 +26,17 @@ export const getSpendingDataByCategory = (transactions) => {
     let totalSpending = 0;
 
     spendingOnly.forEach(tx => {
-        const key = tx.personal_finance_category.primary;
-        const mapped = prettyMapCategory[key];   // {name, icon, color}
+        const category = tx.category;
+        const mapped = prettyMapCategory[category];   // {icon, color}
 
-        const name = mapped.name;
         const icon = mapped.icon;
         const color = mapped.color;
         
         // If it's tracked, just add the total
-        if (categoriesTotal[name]) {
-            categoriesTotal[name].total += tx.amount
+        if (categoriesTotal[category]) {
+            categoriesTotal[category].total += tx.amount
         } else {
-            categoriesTotal[name] = {
+            categoriesTotal[category] = {
                 total: tx.amount,
                 icon,
                 color
