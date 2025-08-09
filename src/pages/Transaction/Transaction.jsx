@@ -33,22 +33,30 @@ const CategoryCell = React.memo(({ value }) => (
 export default function Transaction() {
   console.log("Transaction rendered")
   const { currentUser } = useAuth();
-  const { transactions } = useTransaction();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { transactions, itemId } = useTransaction();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState(null);
   const searchInput = useRef('');
   const [selectedRowCount, setSelectedRowCount] = useState(0);
   const [selectedRowIds, setSelectedRowIds] = useState([]);
 
+  const handleOpenAddModal = useCallback(() => {
+    setIsAddModalOpen(true);
+  }, [])
 
-  // Memorie function
+  const handleCloseAddModal = useCallback(() => {
+    setIsAddModalOpen(false);
+    setSelectedTx(null);
+  }, []);
+
   const handleOpenEditModal = useCallback((row) => {
     setSelectedTx(row);
-    setIsModalOpen(true);
+    setIsEditModalOpen(true);
   }, []);  // Function stay the same
 
-  const handleCloseModal = useCallback(() => {
-    setIsModalOpen(false);
+  const handleCloseEditModal = useCallback(() => {
+    setIsEditModalOpen(false);
     setSelectedTx(null);
   }, []);
 
@@ -57,7 +65,7 @@ export default function Transaction() {
   }, []);
 
   const columns = useMemo(() => [
-    { field: 'account', headerName: 'Account', flex: 1.5 },
+    { field: 'account_name', headerName: 'Account', flex: 1.5 },
     { field: 'date', headerName: 'Date', flex: 1 },
     {
       field: 'merchant_name',
@@ -110,9 +118,10 @@ export default function Transaction() {
       amount: tx.amount,
       date: tx.date,
       category: tx.category || 'Other',
-      account: `${tx.account_name}`,
-      mask: tx.account_mask,
+      account_name: `${tx.account_name}`,
+      account_mask: tx.account_mask,
       notes: tx.notes,
+      pending: tx.pending
     }));
   }, [transactions]);
 
@@ -159,6 +168,7 @@ export default function Transaction() {
               <div className="flex items-center gap-3">
                 <button
                   className="flex items-center gap-1 py-1 px-3 bg-black text-white rounded-md font-medium hover:opacity-80 transition cursor-pointer"
+                  onClick={handleOpenAddModal}
                 >
                   <IoAddCircleSharp/>
                   <span>Add Transaction</span>
@@ -183,16 +193,26 @@ export default function Transaction() {
                     disableRowSelectionOnClick
                     loading={!transactions}
                     initialState={{
-                      pagination: { paginationModel: { pageSize: 25 } },
+                      pagination: { paginationModel: { pageSize: 10 } },
                     }}
                     pageSizeOptions={[5, 10, 25, { value: -1, label: 'All' }]}
                 />
               </div>
-              {isModalOpen && 
+              {isEditModalOpen && 
                 <EditTransactionModal
-                  open={isModalOpen}
-                  onClose={handleCloseModal}
+                  open={isEditModalOpen}
+                  onClose={handleCloseEditModal}
                   transaction={selectedTx}
+                  itemId={itemId}
+                  mode="Edit"
+                />
+              }
+              {isAddModalOpen && 
+                <EditTransactionModal
+                  open={isAddModalOpen}
+                  onClose={handleCloseAddModal}
+                  itemId={itemId}
+                  mode="Add"
                 />
               }
             </section>

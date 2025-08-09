@@ -13,6 +13,7 @@ import './App.css'
 import { TransactionProvider } from './contexts/TransactionContext'
 import { AccountProvider } from './contexts/AccountContext'
 import { useAuth } from './contexts/authContext'
+import { ToastContainer } from 'react-toastify'
 
 function App() {
   const { currentUser} = useAuth();
@@ -44,7 +45,16 @@ function App() {
         />
         <Route path="/SpendingPlan" element={<ProtectedRoute> <SpendingPlan /> </ProtectedRoute>} />
         <Route path="/Goal" element={<ProtectedRoute> <Goal /> </ProtectedRoute>} />
-        </Routes>
+      </Routes>
+      <ToastContainer
+        position="bottom-right"
+        autoClose={3000} // close after 3 seconds
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        pauseOnHover
+        draggable
+      />
     </>
   )
 }

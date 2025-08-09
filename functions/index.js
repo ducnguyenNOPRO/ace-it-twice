@@ -2,7 +2,7 @@ const {onCall, HttpsError, onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const {FieldValue} = require("firebase-admin/firestore")
 const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
-const prettyMapCategory = require('./constants/prettyMapCategory')
+const prettyMapCategory = require('./constants/prettyMapCategory');
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -119,7 +119,6 @@ exports.getAccounts = onCall(async (request) => {
     // List of accounts
     const accounts = accountsResponse.data.accounts;
     const result = [];
-    console.log("List of Accounts:", accounts);
 
     // Store accounts in Firestore
     const batch = admin.firestore().batch();  // Used to write multiple documents at once
@@ -128,6 +127,7 @@ exports.getAccounts = onCall(async (request) => {
     accounts.forEach(account => {
       const docRef = accountsRef.doc(account.account_id);
       batch.set(docRef, {
+        account_id: account.account_id,
         name: account.name,
         official_name: account.official_name,
         type: account.type,
@@ -397,15 +397,86 @@ exports.updateUser = onCall(async (request) => {
   }
 })
 
-/*xports.editTransaction = onCall(async (request) => {
+exports.addTransaction = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("Unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
-  const txData = request.data;
+  const txData = request.data.transaction;
+  const itemId = request.data.itemId
 
   try {
+    // Get the Bank document using itemId
+    const plaidDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId);
     
+      // Contains colleciton(Transaction), collection(Account), accessToken and itemID
+    const plaidDoc = await plaidDocRef.get();
+    
+    if (!plaidDoc.exists) {
+      throw new HttpsError("not-found", "Plaid item not found.");
+    } 
+
+    const newTxDocRef = plaidDocRef.collection("transactions").doc();
+    const newTxDocData = {
+      ...txData,
+      transaction_id: newTxDocRef.id
+    }
+
+    // Save the transaction
+    await newTxDocRef.set(newTxDocData);
+    return {success: true, message: `Transaction added successfully`}
+  } catch (error) {
+    console.error("Error adding document: ", error);
+    throw new HttpsError("internal", "Fail to add transaction")
   }
-}) */
+})
+
+exports.editTransactionById= onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const txId = request.data.txId;  // Transaction Id
+  const txData = request.data.transaction;
+  const itemId = request.data.itemId
+
+  try {
+    // Get the Bank document using itemId
+    const plaidDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId);
+    
+      // Contains colleciton(Transaction), collection(Account), accessToken and itemID
+    const plaidDoc = await plaidDocRef.get();
+    
+    if (!plaidDoc.exists) {
+      throw new HttpsError("not-found", "Plaid item not found.");
+    } 
+
+    // Get transaction doc with Id
+    const txDocRef = plaidDocRef.collection("transactions").doc(txId);
+    const txDoc = await txDocRef.get();
+
+    if (!txDoc.exists) {
+      throw new HttpsError("not-found", "Transaction document not found.");
+    }
+    const newTxDocData = {
+      ...txData
+    }
+
+    // Save the transaction
+    await txDocRef.set(newTxDocData, {merge: true});
+    return {success: true, message: `Transaction updated successfully`}
+  } catch (error) {
+    console.error("Error updating document: ", error);
+    throw new HttpsError("internal", "Fail to update transaction")
+  }
+})

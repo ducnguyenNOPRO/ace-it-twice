@@ -2,8 +2,7 @@ import Dialog from "@mui/material/Dialog"
 import DialogContent from "@mui/material/DialogContent"
 import DialogTitle from "@mui/material/DialogTitle"
 import TextField from "@mui/material/TextField"
-import Box from "@mui/material/Box"
-import React, { useState, useEffect, useMemo, useCallback } from "react"
+import React, { useState, useMemo, useCallback } from "react"
 import MenuItem from "@mui/material/MenuItem"
 import DialogActions from "@mui/material/DialogActions"
 import Button from "@mui/material/Button"
@@ -11,23 +10,41 @@ import Tooltip from "@mui/material/Tooltip"
 import { IoIosHelpCircleOutline } from "react-icons/io"
 import prettyMapCategory from "../../constants/prettyMapCategory"
 import { useAccount } from "../../contexts/AccountContext"
+import { functions } from "../../firebase/firebase"
+import { httpsCallable } from "firebase/functions"
+import { toast } from "react-toastify"
+import showToastDuringAsync from "../../util/showToastDuringAsync"
 
-export default function EditTransactionModal({ open, onClose, transaction }) {
+export default function EditTransactionModal({ open, onClose, mode, transaction, itemId }) {
     const { accounts } = useAccount();
+    // console.log(accounts)
     const [errors, setErrors] = useState({});
     if (!open) {
         return null;
     }
 
-    if (!transaction || accounts.length === 0) {
-        return (
-            <Dialog open={open} onClose={onClose}>
-                <DialogContent>
-                    <div>Loading...</div>
-                </DialogContent>
-            </Dialog>
-        );
+    if (mode === "Edit") {
+        if (!transaction || accounts.length === 0) {
+            return (
+                <Dialog open={open} onClose={onClose}>
+                    <DialogContent>
+                        <div>Loading...</div>
+                    </DialogContent>
+                </Dialog>
+            );
+        }
     }
+
+    const defaultValues = useMemo(() => ({
+        account_name: transaction?.account_name || '',
+        account_mask: transaction?.account_mask || '',
+        date: transaction?.date || '',
+        merchant_name: transaction?.merchant_name || '',
+        category: transaction?.category || '',
+        amount: transaction?.amount || 0,
+        notes: transaction?.notes || '',
+        pending: transaction?.pending || 'true'
+    }), [transaction]);
 
     // Memmoize category options to prevent re-rendering
     const categoryOptions = useMemo(() => {
@@ -61,7 +78,7 @@ export default function EditTransactionModal({ open, onClose, transaction }) {
                         }
                     }}
                 >
-                    {account.name} * {account.mask}
+                    {account.name} - {account.mask}
                 </MenuItem>
             ))
         )
@@ -70,17 +87,20 @@ export default function EditTransactionModal({ open, onClose, transaction }) {
     const validateInput = useCallback((data) => {
         const newErrors = {};
 
-        if (!data.account) {
-            newErrors.account = "Account is required";
+        if (!data.account_name) {
+            newErrors.account_name = "Account is required";
         }
         if (!data.date) {
             newErrors.date = "Date is required";
         }
-        if (!data.merchant) {
-            newErrors.merchant = "Merchant name is required";
+        if (!data.merchant_name) {
+            newErrors.merchant_name = "Merchant name is required";
         }
         if (!data.category) {
             newErrors.category = "Must select a category";
+        }
+        if (!data.pending) {
+            newErrors.pending = "Provide a pending status";
         }
         if (!data.amount) {
             newErrors.amount = "Amount is required, Check ? for more details";
@@ -92,56 +112,92 @@ export default function EditTransactionModal({ open, onClose, transaction }) {
         return Object.keys(newErrors).length === 0;
     }, [])  
 
-    const defaultValues = useMemo(() => ({
-        transaction_id: transaction.transaction_id || transaction.id,
-        account: transaction.account || '',
-        mask: transaction.mask || '',
-        date: transaction.date || '',
-        merchant: transaction.merchant_name || '',
-        category: transaction.category || '',
-        amount: transaction.amount || 0,
-        notes: transaction.notes || ''
-    }), [transaction]);
-
-    const handleSubmit = useCallback((e) => {
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget)
         const formValues = Object.fromEntries(formData.entries());
 
         const validate = validateInput(formValues);
-        console.log(errors)
-        if (validate) {
-            console.log("Success")
+        
+        if (!validate) {
+           return;
         }
+        // Find the account name and mask
+        const account = accounts.find(acc => 
+            acc.name.toLowerCase() === formValues.account_name.toLowerCase()        
+        )
 
+        if (mode === "Add") {
+            const txToSave = {
+                ...formValues,
+                amount: Number(formValues.amount),
+                pending: formValues.pending === "true" || formValues.pending === true,
+                account_mask: account.mask,
+                account_id: account.account_id,
+                iso_currency_code: "USD",
+                name: formValues.merchant_name,
+            }
+            const addTransaction = httpsCallable(functions, "addTransaction");
+            await showToastDuringAsync(
+                addTransaction({ transaction: txToSave, itemId }),
+                {
+                    loadingMessage: "Adding Transaction...",
+                    successMessage: "Transaction added successfully",
+                    errorMessage: "Failed to add transaction. Try again later",
+                    onClose: () => {
+                        onClose();
+                    }
+                }
+            )
+        } else if (mode === "Edit") {
+            const txId = transaction.transaction_id || transaction.id;
+            const txToSave = {
+                ...formValues,
+                amount: Number(formValues.amount),
+                account_mask: account.mask,
+                account_id: account.account_id,
+            }
+            const editTransactionById = httpsCallable(functions, "editTransactionById");
+            await showToastDuringAsync(
+                editTransactionById({ txId, transaction: txToSave, itemId }),
+                {
+                    loadingMessage: "Saving Transaction...",
+                    successMessage: "Transaction updated successfully",
+                    errorMessage: "Failed to update transaction. Try again later",
+                    onClose: () => {
+                        onClose();
+                    }
+                }
+            )
+        }
     }, [validateInput, errors])
 
     return (
         <Dialog open={open} onClose={onClose}>
             <form onSubmit={handleSubmit}>
-                <DialogTitle>Edit Transaction</DialogTitle>
+                <DialogTitle>{mode} Transaction</DialogTitle>      
                 <DialogContent dividers>
+                    <p className="text-right text-red-500">* All fields are required, except Notes</p>
                     <TextField
                         select
                         margin="normal"
                         label="Account Name"
-                        name="account"
-                        defaultValue={defaultValues.account}
+                        name="account_name"
+                        defaultValue={defaultValues.account_name}
                         error={!!errors.account}
                         helperText={errors.account}
                         fullWidth
                     >
-                        <MenuItem value=''></MenuItem>
                         {accountOptions}
                     </TextField>
                     <TextField
                         fullWidth
                         margin="normal"
-                        label="Merchant"
-                        name="merchant"
-                        defaultValue={defaultValues.merchant}
-                        error={!!errors.merchant}
-                        helperText={errors.merchant}
+                        label="Merchant Name"
+                        name="merchant_name"
+                        defaultValue={defaultValues.merchant_name}
+                        error={!!errors.merchant_name}
+                        helperText={errors.merchant_name}
                     />
                     <TextField
                         fullWidth
@@ -152,7 +208,50 @@ export default function EditTransactionModal({ open, onClose, transaction }) {
                         defaultValue={defaultValues.date}
                         error={!!errors.date}
                         helperText={errors.date}
+                        slotProps={{
+                            inputLabel: {
+                                shrink: true
+                            }
+                        }}
                     />
+                    <TextField
+                        fullWidth
+                        select
+                        margin="normal"
+                        label="Pending"
+                        name="pending"
+                        defaultValue={defaultValues.pending}
+                        error={!!errors.pending}
+                        helperText={errors.pending}
+                        slotProps={{
+                            inputLabel: {
+                                shrink: true
+                            }
+                        }}
+                    >
+                        <MenuItem 
+                            value="true"
+                            sx={{
+                                '&:hover': {
+                                    backgroundColor: "#def6f8",
+                                    color: 'black'
+                                }
+                            }}
+                        >
+                            Yes
+                            </MenuItem>
+                        <MenuItem
+                            value="false"
+                            sx={{
+                                '&:hover': {
+                                    backgroundColor: "#def6f8",
+                                    color: 'black'
+                                }
+                            }}
+                        >
+                            No
+                        </MenuItem>
+                    </TextField>
                     <TextField
                         fullWidth
                         select
@@ -181,8 +280,8 @@ export default function EditTransactionModal({ open, onClose, transaction }) {
                         margin="normal"
                         label={
                             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                Amount *
-                                <Tooltip title="User positive for expense, negative for income" arrow>
+                                Amount
+                                <Tooltip title="Use positive number for expense, negative for income" arrow>
                                     <IoIosHelpCircleOutline className="text-2xl text-blue"/>
                                 </Tooltip>
                             </span>
@@ -192,11 +291,6 @@ export default function EditTransactionModal({ open, onClose, transaction }) {
                             inputLabel: {
                                 shrink: true
                             }
-                        }}
-                        sx={{
-                            '& .MuiFormLabel-asterisk': {
-                            display: 'none',
-                            },
                         }}
                         defaultValue={defaultValues.amount}
                         error={!!errors.amount}
