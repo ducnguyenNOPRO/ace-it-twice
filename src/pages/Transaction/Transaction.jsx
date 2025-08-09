@@ -9,6 +9,10 @@ import RowActionMenu from '../../components/Transaction/RowActionMenu'
 import { IoSearchSharp, IoAddCircleSharp} from 'react-icons/io5'
 import { useTransaction } from '../../contexts/TransactionContext'
 import prettyMapCategory from '../../constants/prettyMapCategory'
+import { httpsCallable } from 'firebase/functions'
+import { functions } from '../../firebase/firebase'
+import showToastDuringAsync from '../../util/showToastDuringAsync'
+import { FiRefreshCw } from "react-icons/fi"
 
 // Memoized category cell component to prevent re-renders
 const CategoryCell = React.memo(({ value }) => (
@@ -33,14 +37,13 @@ const CategoryCell = React.memo(({ value }) => (
 export default function Transaction() {
   console.log("Transaction rendered")
   const { currentUser } = useAuth();
-  const { transactions, itemId } = useTransaction();
+  const { transactions, loading, itemId, refreshTransactions } = useTransaction();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState(null);
   const searchInput = useRef('');
   const [selectedRowCount, setSelectedRowCount] = useState(0);
-  const [selectedRowIds, setSelectedRowIds] = useState([]);
-
+  const [selectedRowIds, setSelectedRowIds] = useState([]);  // For Batch transaction deletion
   const handleOpenAddModal = useCallback(() => {
     setIsAddModalOpen(true);
   }, [])
@@ -60,9 +63,37 @@ export default function Transaction() {
     setSelectedTx(null);
   }, []);
 
-  const handleDeleteTransaction = useCallback((row) => {
+  // Delete a single a transaction
+  const handleDeleteSingleTransaction = useCallback(async (row) => {
+    const txId = row.id || row.transaction_id;
 
+    const deleteTransactionById = httpsCallable(functions, "deleteTransactionById");
+    await showToastDuringAsync(
+      deleteTransactionById({txId, itemId}),
+      {
+        loadingMessage: "Deleting transaction...",
+        successMessage: "Transaction deleted successfully",
+        errorMessage: "Failed to delete transaction. Try again later",
+      }
+    )
   }, []);
+
+  // Delete many transaction at once
+  const handleDeleteBatchTransactions = useCallback(async () => {
+    const deleteBatchTransaction = httpsCallable(functions, "deleteBatchTransaction");
+    const result = await showToastDuringAsync(
+      deleteBatchTransaction({ selectedRowIds, itemId }),
+      {
+        loadingMessage: `Deleting ${selectedRowCount} transactions...`,
+        successMessage: `${selectedRowCount} transaction deleted successfully`,
+        errorMessage: `Failed to delete ${selectedRowCount} transactions. Try again later`,
+      }
+    )
+    if (result.data.success) { 
+      setSelectedRowCount(0);
+      setSelectedRowIds([]);
+    }
+  }, [selectedRowCount, selectedRowIds])
 
   const columns = useMemo(() => [
     { field: 'account_name', headerName: 'Account', flex: 1.5 },
@@ -79,33 +110,33 @@ export default function Transaction() {
         <CategoryCell value={params.value} />
       ),
       flex: 1,
-  },
-  {
-    field: 'amount',
-    headerName: 'Amount',
-    flex: 0.7,
-    renderCell: (params) => (
-      <span className={params.value > 0 ? 'text-red-500' : 'text-green-600'}>
-        ${Math.abs(params.value).toFixed(2)}
-      </span>
-    ),
-  },
-  {
-    field: 'actions',
-    headerName: 'Actions',
-    flex: 0.5,
-    sortable: false,
-    filterable: false,
-    disableColumnMenu: true,
-    renderCell: (params) => (
-      <RowActionMenu
-        row={params.row}
-        handleOpenEditModal={handleOpenEditModal}
-        handleDeleteTransaction={handleDeleteTransaction}
-      />
-    )
-  }
-  ], [handleOpenEditModal, handleDeleteTransaction]);
+    },
+    {
+      field: 'amount',
+      headerName: 'Amount',
+      flex: 0.7,
+      renderCell: (params) => (
+        <span className={params.value > 0 ? 'text-red-500' : 'text-green-600'}>
+          ${Math.abs(params.value).toFixed(2)}
+        </span>
+      ),
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      flex: 0.5,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params) => (
+        <RowActionMenu
+          row={params.row}
+          handleOpenEditModal={handleOpenEditModal}
+          handleDeleteTransaction={handleDeleteSingleTransaction}
+        />
+      )
+    }
+  ], [handleOpenEditModal, handleDeleteSingleTransaction]);
 
   const formattedRows = useMemo(() => {
     if (!transactions || transactions.length === 0) return [];
@@ -130,13 +161,18 @@ export default function Transaction() {
     let ids = [];
     // newSelection.ids is type Set
     if (newSelection?.type === 'include') {
+      // inclde type = selected transaciton stored in ids Set
       setSelectedRowCount(newSelection.ids.size);
       setSelectedRowIds(Array.from(newSelection.ids)); // Convert Set to Array
       return;
     }
     if (newSelection?.type === 'exclude') {
       const excluded = newSelection.ids || new Set();
+      // exclude type = transactions that are not selected
+      // are now store in ids.
+      // Keep the selected transactions by filtering the non selected txs
       ids = transactions.filter(row => !excluded.has(String(row.id))).map(row => row.id);
+      console.log(ids);
     }
     setSelectedRowIds(ids);
     setSelectedRowCount(ids.length);
@@ -155,9 +191,9 @@ export default function Transaction() {
             
             <span className="w-full h-px bg-gray-200 block my-5"></span>
 
-            {/* Search transaction */}
-            <div className="flex items-center justify-between mb-2 mx-2">
-              <div className="relative grow mr-4">
+            <div className="flex items-center justify-between mb-2 mx-2 gap-1">
+              {/* Search transaction */}
+              <div className="relative grow">
                   <IoSearchSharp className="absolute top-1/2 left-2 transform -translate-y-1/2" />
                   <input 
                     id="searchTransaction"
@@ -165,7 +201,15 @@ export default function Transaction() {
                     className="w-full pl-8 py-1 tracking-wider text-md text-black bg-white border-2 border-gray-300 rounded-md "
                   />
               </div>
+              <button
+                className="cursor-pointer hover:bg-gray-100 hover:rounded-md p-2"
+                onClick={() => refreshTransactions()}
+                title="Refresh"
+              >
+                <FiRefreshCw className="transform hover:rotate-360 transition-transform duration-1000 ease-out"/>
+              </button>          
               <div className="flex items-center gap-3">
+                {/* Add transaction */}    
                 <button
                   className="flex items-center gap-1 py-1 px-3 bg-black text-white rounded-md font-medium hover:opacity-80 transition cursor-pointer"
                   onClick={handleOpenAddModal}
@@ -173,11 +217,15 @@ export default function Transaction() {
                   <IoAddCircleSharp/>
                   <span>Add Transaction</span>
                 </button>
+                {/* Delete batch transaction */}    
                 <button
                   className="flex items-center gap-1 py-1 px-3 bg-red-600 text-white rounded-md font-medium hover:opacity-80 transition cursor-pointer"
+                  onClick={handleDeleteBatchTransactions}
                 >
                   <IoAddCircleSharp />
-                  <span>Delete Selected ({selectedRowCount})</span>
+                  <span>
+                    {selectedRowCount > 0 ? `Delete Selected (${selectedRowCount})` : 'Delete'}
+                  </span>
                 </button>
               </div>
             </div>
@@ -191,7 +239,7 @@ export default function Transaction() {
                     checkboxSelection
                     onRowSelectionModelChange={handleRowSelectionChange}
                     disableRowSelectionOnClick
-                    loading={!transactions}
+                    loading={loading}
                     initialState={{
                       pagination: { paginationModel: { pageSize: 10 } },
                     }}

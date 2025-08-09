@@ -97,7 +97,7 @@ export const TransactionProvider = ({ children }) => {
     };
     return (
         <TransactionContext.Provider value={{ itemId, transactions, loading, refreshTransactions }}>
-            {!loading && children}
+            {children}
         </TransactionContext.Provider>
     )
 }

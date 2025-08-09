@@ -26,7 +26,7 @@ export default async function showToastDuringAsync(promise,
       closeOnClick: true,
       draggable: true,
     });
-    throw error;
+    console.error(errorMessage, error);
   } finally {
       if (typeof onClose === "function") {
           onClose();
