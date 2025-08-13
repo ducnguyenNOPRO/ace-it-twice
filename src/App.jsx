@@ -12,11 +12,10 @@ import ProtectedRoute from './components/ProtectRoute'
 import './App.css'
 import { TransactionProvider } from './contexts/TransactionContext'
 import { AccountProvider } from './contexts/AccountContext'
-import { useAuth } from './contexts/authContext'
 import { ToastContainer } from 'react-toastify'
+import PlaidLayout from "./util/PlaidLayout"
 
 function App() {
-  const { currentUser} = useAuth();
   return (
     <>
       <Routes>
@@ -27,20 +26,16 @@ function App() {
         <Route path="/Setting" element={<ProtectedRoute> <Setting /> </ProtectedRoute>}/>
         <Route path="/Dashboard" element={
           <ProtectedRoute>
-            <TransactionProvider>
-              <AccountProvider>
-                <Dashboard />
-              </AccountProvider>
-            </TransactionProvider>
+            <PlaidLayout>
+              <Dashboard />
+            </PlaidLayout>
           </ProtectedRoute>}
         />
         <Route path="/Transaction" element={
           <ProtectedRoute>
-            <TransactionProvider>
-              <AccountProvider >
-                <Transaction />
-              </AccountProvider>
-            </TransactionProvider>
+            <PlaidLayout>
+              <Transaction />
+            </PlaidLayout>
           </ProtectedRoute>}
         />
         <Route path="/SpendingPlan" element={<ProtectedRoute> <SpendingPlan /> </ProtectedRoute>} />

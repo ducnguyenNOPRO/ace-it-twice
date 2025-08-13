@@ -16,7 +16,7 @@ export const TransactionProvider = ({ children }) => {
     // Fetch itemId
     useEffect(() => {
         if (!uid) return;
-
+        console.log("Fetching itemID");
         const fetchItemId = async () => {
             try {
                 const ref = collection(db, 'users', uid, 'plaid');
@@ -96,7 +96,7 @@ export const TransactionProvider = ({ children }) => {
         }
     };
     return (
-        <TransactionContext.Provider value={{ itemId, transactions, loading, refreshTransactions }}>
+        <TransactionContext.Provider value={{ itemId, transactions, setTransactions, loading, refreshTransactions }}>
             {children}
         </TransactionContext.Provider>
     )

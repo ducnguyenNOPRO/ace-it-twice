@@ -135,7 +135,6 @@ export default function EditTransactionModal({ open, onClose, mode, transaction,
                 account_mask: account.mask,
                 account_id: account.account_id,
                 iso_currency_code: "USD",
-                name: formValues.merchant_name,
             }
             const addTransaction = httpsCallable(functions, "addTransaction");
             await showToastDuringAsync(

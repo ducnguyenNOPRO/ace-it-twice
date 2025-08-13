@@ -6,13 +6,14 @@ import './Transaction.css'
 import { DataGrid} from '@mui/x-data-grid'
 import EditTransactionModal from '../../components/Transaction/Modal'
 import RowActionMenu from '../../components/Transaction/RowActionMenu'
-import { IoSearchSharp, IoAddCircleSharp} from 'react-icons/io5'
+import { IoAddCircleSharp} from 'react-icons/io5'
 import { useTransaction } from '../../contexts/TransactionContext'
 import prettyMapCategory from '../../constants/prettyMapCategory'
 import { httpsCallable } from 'firebase/functions'
 import { functions } from '../../firebase/firebase'
 import showToastDuringAsync from '../../util/showToastDuringAsync'
 import { FiRefreshCw } from "react-icons/fi"
+import SearchTransaction from '../../components/Transaction/SearchBar'
 
 // Memoized category cell component to prevent re-renders
 const CategoryCell = React.memo(({ value }) => (
@@ -38,12 +39,13 @@ export default function Transaction() {
   console.log("Transaction rendered")
   const { currentUser } = useAuth();
   const { transactions, loading, itemId, refreshTransactions } = useTransaction();
+  const [searchQuery, setSearchQuery] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState(null);
-  const searchInput = useRef('');
   const [selectedRowCount, setSelectedRowCount] = useState(0);
   const [selectedRowIds, setSelectedRowIds] = useState([]);  // For Batch transaction deletion
+
   const handleOpenAddModal = useCallback(() => {
     setIsAddModalOpen(true);
   }, [])
@@ -138,23 +140,16 @@ export default function Transaction() {
     }
   ], [handleOpenEditModal, handleDeleteSingleTransaction]);
 
-  const formattedRows = useMemo(() => {
-    if (!transactions || transactions.length === 0) return [];
-    
-    return transactions.map((tx) => ({
-      id: tx.id,
-      transaction_id: tx.transaction_id,
-      account_id: tx.account_id,
-      merchant_name: tx.merchant_name || tx.name,
-      amount: tx.amount,
-      date: tx.date,
-      category: tx.category || 'Other',
-      account_name: `${tx.account_name}`,
-      account_mask: tx.account_mask,
-      notes: tx.notes,
-      pending: tx.pending
-    }));
-  }, [transactions]);
+  const filteredTransactions = useMemo(() => {
+    if (!searchQuery || searchQuery.length === 0) return transactions;
+    return transactions.filter((tx) =>
+      tx.account_name.toLowerCase().includes(searchQuery) ||
+      tx.date.toLowerCase().includes(searchQuery) ||
+      tx.merchant_name.toLowerCase().includes(searchQuery) ||
+      tx.category.toLowerCase().includes(searchQuery) ||
+      tx.amount.toString().toLowerCase().includes(searchQuery)
+    );
+  }, [transactions, searchQuery]);
 
   // Memoize row selection handler
   const handleRowSelectionChange = useCallback((newSelection) => {
@@ -190,17 +185,9 @@ export default function Transaction() {
             <Topbar pageName='Transaction' userFirstInitial={currentUser.displayName?.charAt(0)} />             
             
             <span className="w-full h-px bg-gray-200 block my-5"></span>
-
             <div className="flex items-center justify-between mb-2 mx-2 gap-1">
               {/* Search transaction */}
-              <div className="relative grow">
-                  <IoSearchSharp className="absolute top-1/2 left-2 transform -translate-y-1/2" />
-                  <input 
-                    id="searchTransaction"
-                    placeholder="Search for a transaction"
-                    className="w-full pl-8 py-1 tracking-wider text-md text-black bg-white border-2 border-gray-300 rounded-md "
-                  />
-              </div>
+              <SearchTransaction onSearch={setSearchQuery} />
               <button
                 className="cursor-pointer hover:bg-gray-100 hover:rounded-md p-2"
                 onClick={() => refreshTransactions()}
@@ -233,7 +220,7 @@ export default function Transaction() {
             <section>
                 <div className="w-full">
                   <DataGrid
-                    rows={formattedRows}
+                    rows={filteredTransactions}
                     columns={columns}
                     disableColumnResize={true}
                     checkboxSelection

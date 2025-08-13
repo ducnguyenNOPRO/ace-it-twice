@@ -203,7 +203,7 @@ exports.getTransactions = onCall(async (request) => {
       return {
         transaction_id: tx.transaction_id,
         name: tx.name,
-        merchant_name: tx.merchant_name,
+        merchant_name: tx.merchant_name || tx.name,
         amount: tx.amount,
         iso_currency_code: tx.iso_currency_code,
         date: tx.date,
@@ -235,7 +235,12 @@ exports.getTransactions = onCall(async (request) => {
 
     await batch.commit();
 
-    return { success: true, message: "Accounts synced", count: transactionsToSave.length };
+    return {
+      success: true,
+      message: "Accounts synced",
+      count: transactionsToSave.length,
+      transactions: transactionsToSave
+    };
   }
   catch (error) {
     throw new HttpsError("internal", "Fail to get transactions.");
