@@ -91,8 +91,10 @@ const PlaidLinkWrapper = ({
         });
         setIsConnected(true);
           
-        const getAccounts = httpsCallable(functions, "getAccounts");
-        await getAccounts({itemId: result.data.itemId});
+        const fetchAccounts = httpsCallable(functions, "fetchAccountFromPlaid");
+        await fetchAccounts({itemId: result.data.itemId});
+        const fetchTransactionsFromPlaid = httpsCallable(functions, "fetchTransactionsFromPlaid")
+        await fetchTransactionsFromPlaid({ itemId: result.data.itemId });
       } catch (error) {
         console.error("Error exchanging token:", error);
       }

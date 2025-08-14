@@ -9,17 +9,33 @@ import { useAuth } from '../../contexts/authContext'
 import { useAccount } from '../../contexts/AccountContext'
 import MonthlySpending from '../../components/Dashboard/MontlySpending'
 import { getMonthlySpendingData, getSpendingDataByCategory } from '../../util/spendingData'
-import { useTransaction } from '../../contexts/TransactionContext'
+import { useQuery } from '@tanstack/react-query'
+import { createTransactionsQueryOptions, createAccountsQueryOptions} from '../../util/createQueryOptions'
 import { useItemId } from '../../hooks/useItemId'
 
-export default function Dashboard() {    
+export default function Dashboard() {
+  const [currentIndex, setCurrentIndex] = useState(0);
   const { currentUser } = useAuth();
   const { itemId } = useItemId(currentUser.uid);
-  const { accounts, loadingAccounts } = useAccount();
-  const { transactions, loading } = useTransaction();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const monthlySpendingData = getMonthlySpendingData(transactions);  // { "MMM YYYY", totalSpending: int}
-  const categorySpendingData = getSpendingDataByCategory(transactions);  // {totalSpending: int, sortedCategories[{total, icon, color}]}
+  const { data: transactions, isLoading: loadingTxs } = useQuery(
+    createTransactionsQueryOptions({ itemId },
+      {
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false
+      }));
+  const { data: accounts, isLoading: loadingAccs } = useQuery(
+    createAccountsQueryOptions({ itemId },
+      {
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false
+      }))
+  if (loadingTxs || loadingAccs) {
+    return <div>Loading...</div>
+  }
+  const monthlySpendingData = getMonthlySpendingData(transactions);  //return { "MMM YYYY", totalSpending: int}
+  const categorySpendingData = getSpendingDataByCategory(transactions);  //return {totalSpending: int, sortedCategories[{total, icon, color}]}
 
   const handlePrev = () => {
     setCurrentIndex(prev => (prev === 0 ? accounts.length - 1 : prev - 1));
@@ -27,14 +43,6 @@ export default function Dashboard() {
 
   const handleNext = () => {
     setCurrentIndex(prev => (prev === accounts.length - 1 ? 0 : prev + 1));
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-100">
-        <p className="text-gray-500">Loading...</p>
-      </div>
-    )
   }
 
   return (
@@ -57,7 +65,7 @@ export default function Dashboard() {
                   <h1 className="mb-3 font-semibold text-xl text-black tracking-wider">Card</h1>
             
                 {/* Cards */}
-                {loadingAccounts
+                {loadingAccs
                   ? <p>Loading Bank Accounts</p>
                   :
                   <div className="flex gap-x-1">
@@ -91,7 +99,7 @@ export default function Dashboard() {
             <section className="flex flex-wrap gap-6 w-full p-5">
               {/* Transaction History */}
               <div className="w-fit lg:w-1/2 border border-gray-200 rounded-lg shadow-2xl p-6"> 
-                <TransactionHistory transactions={transactions.slice(0,3)} />  
+                <TransactionHistory transactions={transactions?.slice(0,3)} />  
               </div>
               {/* Top catogories */}
               <div className="grow md:w-fit border-gray-200 rounded-lg shadow-2xl p-6">

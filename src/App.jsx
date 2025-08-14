@@ -10,10 +10,7 @@ import Setting from './pages/Setting/Setting'
 import Goal from './pages/Goal'
 import ProtectedRoute from './components/ProtectRoute'
 import './App.css'
-import { TransactionProvider } from './contexts/TransactionContext'
-import { AccountProvider } from './contexts/AccountContext'
 import { ToastContainer } from 'react-toastify'
-import PlaidLayout from "./util/PlaidLayout"
 
 function App() {
   return (
@@ -26,16 +23,12 @@ function App() {
         <Route path="/Setting" element={<ProtectedRoute> <Setting /> </ProtectedRoute>}/>
         <Route path="/Dashboard" element={
           <ProtectedRoute>
-            <PlaidLayout>
-              <Dashboard />
-            </PlaidLayout>
+            <Dashboard />
           </ProtectedRoute>}
         />
         <Route path="/Transaction" element={
           <ProtectedRoute>
-            <PlaidLayout>
-              <Transaction />
-            </PlaidLayout>
+            <Transaction />
           </ProtectedRoute>}
         />
         <Route path="/SpendingPlan" element={<ProtectedRoute> <SpendingPlan /> </ProtectedRoute>} />

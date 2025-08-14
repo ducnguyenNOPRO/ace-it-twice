@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react'
+import React, { useState, useRef, useMemo, useCallback, useId } from 'react'
 import { useAuth } from '../../contexts/authContext'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar'
@@ -8,12 +8,15 @@ import EditTransactionModal from '../../components/Transaction/Modal'
 import RowActionMenu from '../../components/Transaction/RowActionMenu'
 import { IoAddCircleSharp} from 'react-icons/io5'
 import { useTransaction } from '../../contexts/TransactionContext'
+import { useItemId } from '../../hooks/useItemId'
 import prettyMapCategory from '../../constants/prettyMapCategory'
 import { httpsCallable } from 'firebase/functions'
 import { functions } from '../../firebase/firebase'
 import showToastDuringAsync from '../../util/showToastDuringAsync'
 import { FiRefreshCw } from "react-icons/fi"
 import SearchTransaction from '../../components/Transaction/SearchBar'
+import { useQuery } from '@tanstack/react-query'
+import { createTransactionsQueryOptions } from '../../util/createQueryOptions'
 
 // Memoized category cell component to prevent re-renders
 const CategoryCell = React.memo(({ value }) => (
@@ -38,7 +41,15 @@ const CategoryCell = React.memo(({ value }) => (
 export default function Transaction() {
   console.log("Transaction rendered")
   const { currentUser } = useAuth();
-  const { transactions, loading, itemId, refreshTransactions } = useTransaction();
+  //const { transactions, loading, itemId, refreshTransactions } = useTransaction();
+  const { itemId } = useItemId(currentUser.uid);
+  const { data: transactions } = useQuery(
+    createTransactionsQueryOptions({ itemId },
+      {
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false
+      }))
   const [searchQuery, setSearchQuery] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -190,7 +201,7 @@ export default function Transaction() {
               <SearchTransaction onSearch={setSearchQuery} />
               <button
                 className="cursor-pointer hover:bg-gray-100 hover:rounded-md p-2"
-                onClick={() => refreshTransactions()}
+                //onClick={() => refreshTransactions()}
                 title="Refresh"
               >
                 <FiRefreshCw className="transform hover:rotate-360 transition-transform duration-1000 ease-out"/>
@@ -226,7 +237,7 @@ export default function Transaction() {
                     checkboxSelection
                     onRowSelectionModelChange={handleRowSelectionChange}
                     disableRowSelectionOnClick
-                    loading={loading}
+                    //loading={loading}
                     initialState={{
                       pagination: { paginationModel: { pageSize: 10 } },
                     }}

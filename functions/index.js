@@ -87,11 +87,7 @@ exports.exchangePublicToken = onCall(async (request) => {
   }
 })
 
-exports.getAccounts = onCall(async (request) => {
-  if (!request.auth) {
-      throw new HttpsError("Unauthenticated", "User must be logged in");
-  }
-
+exports.fetchAccountsFromPlaid = onCall(async (request) => {
   const uid = request.auth.uid;
   const itemId = request.data.itemId
 
@@ -148,7 +144,36 @@ exports.getAccounts = onCall(async (request) => {
   }
 })
 
-exports.getTransactions = onCall(async (request) => {
+exports.getAccounts = onCall(async (request) => {
+  const uid = request.auth.uid;
+  const itemId = request.data.itemId;
+
+  if (!itemId || !uid) {
+    throw new HttpsError("invalid-argument", "Missing Item Id or UID");
+  }
+  try {
+    const accountsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection('accounts');
+    
+    const snapshot = await accountsRef.get();
+
+    const accounts = snapshot.docs.map(doc => doc.data());
+    return {
+      success: true,
+      message: "Transactions fetched DB",
+      count: accounts.length,
+      accounts: accounts
+    };
+  } catch (error) {
+    throw new HttpsError("internal", "Fail to get transactions.");
+  }
+})
+
+exports.fetchTransactionsFromPlaid = onCall(async (request) => {
   if (!request.auth) {
       throw new HttpsError("Unauthenticated", "User must be logged in");
   }
@@ -238,11 +263,45 @@ exports.getTransactions = onCall(async (request) => {
     return {
       success: true,
       message: "Accounts synced",
-      count: transactionsToSave.length,
-      transactions: transactionsToSave
+      count: transactionsToSave.length
     };
   }
   catch (error) {
+    throw new HttpsError("internal", "Fail to fetch transactions.");
+  }
+})
+
+exports.getTransactions = onCall(async (request) => {
+  const uid = request.auth.uid;
+  const itemId = request.data.itemId;
+
+  if (!itemId || !uid) {
+    throw new HttpsError("invalid-argument", "Missing Item Id or UID");
+  }
+  try {
+    const transactionsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection('transactions');
+    
+    const snapshot = await transactionsRef
+      .orderBy("date", "desc")
+      .get();
+
+    const transactions = snapshot.docs.map(doc => ({
+      id: doc.id,
+        ...doc.data()
+    }))
+
+    return {
+      success: true,
+      message: "Transactions fetched DB",
+      count: transactions.length,
+      transactions: transactions
+    };
+  } catch (error) {
     throw new HttpsError("internal", "Fail to get transactions.");
   }
 })
