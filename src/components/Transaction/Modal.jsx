@@ -9,22 +9,31 @@ import Button from "@mui/material/Button"
 import Tooltip from "@mui/material/Tooltip"
 import { IoIosHelpCircleOutline } from "react-icons/io"
 import prettyMapCategory from "../../constants/prettyMapCategory"
-import { useAccount } from "../../contexts/AccountContext"
 import { functions } from "../../firebase/firebase"
 import { httpsCallable } from "firebase/functions"
-import { toast } from "react-toastify"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import showToastDuringAsync from "../../util/showToastDuringAsync"
+import { addTransaction, editTransactionById } from "../../api/transactions"
+import { createAccountsQueryOptions, createTransactionsQueryOptions } from "../../util/createQueryOptions"
 
-export default function EditTransactionModal({ open, onClose, mode, transaction, itemId }) {
-    const { accounts } = useAccount();
-    // console.log(accounts)
+export default function AddAndEditTransactionModal({ open, onClose, mode, transaction, itemId }) {
+    const queryClient = useQueryClient();
+    // default to empty [] till fetched
+    const { data: accounts = [], isLoading: loadingAccs } = useQuery(
+        createAccountsQueryOptions({ itemId },
+          {
+            staleTime: Infinity,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false
+    }))
     const [errors, setErrors] = useState({});
+    
     if (!open) {
         return null;
     }
 
     if (mode === "Edit") {
-        if (!transaction || accounts.length === 0) {
+        if (!transaction || loadingAccs) {
             return (
                 <Dialog open={open} onClose={onClose}>
                     <DialogContent>
@@ -136,18 +145,10 @@ export default function EditTransactionModal({ open, onClose, mode, transaction,
                 account_id: account.account_id,
                 iso_currency_code: "USD",
             }
-            const addTransaction = httpsCallable(functions, "addTransaction");
-            await showToastDuringAsync(
-                addTransaction({ transaction: txToSave, itemId }),
-                {
-                    loadingMessage: "Adding Transaction...",
-                    successMessage: "Transaction added successfully",
-                    errorMessage: "Failed to add transaction. Try again later",
-                    onClose: () => {
-                        onClose();
-                    }
-                }
-            )
+            await addTransaction(txToSave, itemId, onClose);
+            queryClient.invalidateQueries({
+                  queryKey: createTransactionsQueryOptions().queryKey
+            });
         } else if (mode === "Edit") {
             const txId = transaction.transaction_id || transaction.id;
             const txToSave = {
@@ -156,18 +157,10 @@ export default function EditTransactionModal({ open, onClose, mode, transaction,
                 account_mask: account.mask,
                 account_id: account.account_id,
             }
-            const editTransactionById = httpsCallable(functions, "editTransactionById");
-            await showToastDuringAsync(
-                editTransactionById({ txId, transaction: txToSave, itemId }),
-                {
-                    loadingMessage: "Saving Transaction...",
-                    successMessage: "Transaction updated successfully",
-                    errorMessage: "Failed to update transaction. Try again later",
-                    onClose: () => {
-                        onClose();
-                    }
-                }
-            )
+            await editTransactionById(txId, txToSave, itemId, onClose);
+            queryClient.invalidateQueries({
+                  queryKey: createTransactionsQueryOptions().queryKey
+            });
         }
     }, [validateInput, errors])
 
@@ -183,8 +176,8 @@ export default function EditTransactionModal({ open, onClose, mode, transaction,
                         label="Account Name"
                         name="account_name"
                         defaultValue={defaultValues.account_name}
-                        error={!!errors.account}
-                        helperText={errors.account}
+                        error={!!errors.account_name}
+                        helperText={errors.account_name}
                         fullWidth
                     >
                         {accountOptions}

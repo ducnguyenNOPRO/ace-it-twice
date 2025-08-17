@@ -88,8 +88,12 @@ exports.exchangePublicToken = onCall(async (request) => {
 })
 
 exports.fetchAccountsFromPlaid = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
   const uid = request.auth.uid;
   const itemId = request.data.itemId
+  if (!itemId) throw new HttpsError("invalid-argument", "Missing ItemId")
 
   try {
     // Get access token from firestore
@@ -145,11 +149,14 @@ exports.fetchAccountsFromPlaid = onCall(async (request) => {
 })
 
 exports.getAccounts = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
   const uid = request.auth.uid;
   const itemId = request.data.itemId;
 
-  if (!itemId || !uid) {
-    throw new HttpsError("invalid-argument", "Missing Item Id or UID");
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
   }
   try {
     const accountsRef = admin.firestore()
@@ -180,6 +187,8 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
 
   const uid = request.auth.uid;
   const itemId = request.data.itemId
+
+  if (!itemId) throw new HttpsError("invalid-argument", "Missing itemId");
 
   try {
     // Get access token from firestore
@@ -272,11 +281,14 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
 })
 
 exports.getTransactions = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
   const uid = request.auth.uid;
   const itemId = request.data.itemId;
 
-  if (!itemId || !uid) {
-    throw new HttpsError("invalid-argument", "Missing Item Id or UID");
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
   }
   try {
     const transactionsRef = admin.firestore()
@@ -503,15 +515,18 @@ exports.editTransactionById= onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const txId = request.data.txId;  // Transaction Id
+  const txId = request.data.transactionId;  // Transaction Id
   const txData = request.data.transaction;
   const itemId = request.data.itemId
 
-  if (!txId || !itemId) {
-    throw new HttpsError("invalid-argument", "Missing transaction Id or Item Id");
+  if (!txId) {
+    throw new HttpsError("invalid-argument", "Missing transaction Id");
   }
   if (!txData) {
     throw new HttpsError("invalid-argument", "Missing transaction data");
+  }
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
   }
 
   try {
@@ -547,13 +562,15 @@ exports.deleteTransactionById= onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("Unauthenticated", "User must be logged in");
   }
-
   const uid = request.auth.uid;
-  const txId = request.data.txId;  // Transaction Id
+  const txId = request.data.transactionId;  // Transaction Id
   const itemId = request.data.itemId
 
-  if (!txId || !itemId) {
-    throw new HttpsError("invalid-argument", "Missing transaction Id or Item Id");
+  if (!txId) {
+    throw new HttpsError("invalid-argument", "Missing transaction Id");
+  }
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
   }
 
   try {
@@ -588,12 +605,14 @@ exports.deleteBatchTransaction = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const txsToDelete = request.data.selectedRowIds;  // Array
-  console.log(request.data.selectedRowIds);
+  const txsToDelete = request.data.selectedTransactionIds;  // Array
   const itemId = request.data.itemId
 
-  if (!txsToDelete || !itemId) {
-    throw new HttpsError("invalid-argument", "Missing transactions or Item Id");
+  if (!txsToDelete) {
+    throw new HttpsError("invalid-argument", "Missing transactions");
+  }
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing itemId");
   }
 
   const batch = admin.firestore().batch(); // used to write multiple documents

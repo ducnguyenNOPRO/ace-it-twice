@@ -91,8 +91,8 @@ const PlaidLinkWrapper = ({
         });
         setIsConnected(true);
           
-        const fetchAccounts = httpsCallable(functions, "fetchAccountFromPlaid");
-        await fetchAccounts({itemId: result.data.itemId});
+        const fetchAccounts = httpsCallable(functions, "fetchAccountsFromPlaid");
+        await fetchAccounts({ itemId: result.data.itemId });
         const fetchTransactionsFromPlaid = httpsCallable(functions, "fetchTransactionsFromPlaid")
         await fetchTransactionsFromPlaid({ itemId: result.data.itemId });
       } catch (error) {

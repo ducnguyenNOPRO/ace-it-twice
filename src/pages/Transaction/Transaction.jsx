@@ -4,19 +4,16 @@ import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar'
 import './Transaction.css'
 import { DataGrid} from '@mui/x-data-grid'
-import EditTransactionModal from '../../components/Transaction/Modal'
+import AddAndEditTransactionModal from '../../components/Transaction/Modal'
 import RowActionMenu from '../../components/Transaction/RowActionMenu'
 import { IoAddCircleSharp} from 'react-icons/io5'
-import { useTransaction } from '../../contexts/TransactionContext'
 import { useItemId } from '../../hooks/useItemId'
 import prettyMapCategory from '../../constants/prettyMapCategory'
-import { httpsCallable } from 'firebase/functions'
-import { functions } from '../../firebase/firebase'
-import showToastDuringAsync from '../../util/showToastDuringAsync'
 import { FiRefreshCw } from "react-icons/fi"
 import SearchTransaction from '../../components/Transaction/SearchBar'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createTransactionsQueryOptions } from '../../util/createQueryOptions'
+import { deleteBatchTransaction, deleteSingleTransaction, fetchTransactionsFromPlaid } from '../../api/transactions'
 
 // Memoized category cell component to prevent re-renders
 const CategoryCell = React.memo(({ value }) => (
@@ -39,12 +36,17 @@ const CategoryCell = React.memo(({ value }) => (
 
 
 export default function Transaction() {
-  console.log("Transaction rendered")
   const { currentUser } = useAuth();
-  //const { transactions, loading, itemId, refreshTransactions } = useTransaction();
-  const { itemId } = useItemId(currentUser.uid);
-  const { data: transactions } = useQuery(
-    createTransactionsQueryOptions({ itemId },
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10
+  })
+  const [lastDocIds, setLastDocIds] = useState({}) // Store lastDoc for each page
+  const queryClient = useQueryClient();
+  const { itemId, loadingItemId } = useItemId(currentUser.uid);
+  const { data: transactions = [], isLoading: loadingTransactions, refetch: refetchTransactions } = useQuery(
+    createTransactionsQueryOptions(
+      { itemId },
       {
         staleTime: Infinity,
         refetchOnWindowFocus: false,
@@ -56,6 +58,22 @@ export default function Transaction() {
   const [selectedTx, setSelectedTx] = useState(null);
   const [selectedRowCount, setSelectedRowCount] = useState(0);
   const [selectedRowIds, setSelectedRowIds] = useState([]);  // For Batch transaction deletion
+  
+  // User click refresh button
+  // --> Manually refetch from Plaid
+  // --> read from DB
+  const {mutate, isPending} = useMutation({
+    mutationFn: (itemId) => fetchTransactionsFromPlaid(itemId),
+    onSuccess: () => {
+      // After fetching from Plaid, refetch Firestore
+      refetchTransactions()
+    }
+  })
+
+  // Manually refetch from Plaid
+  const handleRefresh = useCallback(() => {
+    mutate(itemId)
+  }, [itemId]);
 
   const handleOpenAddModal = useCallback(() => {
     setIsAddModalOpen(true);
@@ -78,35 +96,25 @@ export default function Transaction() {
 
   // Delete a single a transaction
   const handleDeleteSingleTransaction = useCallback(async (row) => {
-    const txId = row.id || row.transaction_id;
-
-    const deleteTransactionById = httpsCallable(functions, "deleteTransactionById");
-    await showToastDuringAsync(
-      deleteTransactionById({txId, itemId}),
-      {
-        loadingMessage: "Deleting transaction...",
-        successMessage: "Transaction deleted successfully",
-        errorMessage: "Failed to delete transaction. Try again later",
-      }
-    )
-  }, []);
+    const transactionId = row.id || row.transaction_id;
+    await deleteSingleTransaction(transactionId, itemId);
+    queryClient.invalidateQueries({
+      queryKey: createTransactionsQueryOptions().queryKey
+    });
+  }, [itemId]);
 
   // Delete many transaction at once
   const handleDeleteBatchTransactions = useCallback(async () => {
-    const deleteBatchTransaction = httpsCallable(functions, "deleteBatchTransaction");
-    const result = await showToastDuringAsync(
-      deleteBatchTransaction({ selectedRowIds, itemId }),
-      {
-        loadingMessage: `Deleting ${selectedRowCount} transactions...`,
-        successMessage: `${selectedRowCount} transaction deleted successfully`,
-        errorMessage: `Failed to delete ${selectedRowCount} transactions. Try again later`,
-      }
-    )
+    const result = await deleteBatchTransaction(selectedRowIds, itemId);
+
     if (result.data.success) { 
+      queryClient.invalidateQueries({
+        queryKey: createTransactionsQueryOptions().queryKey
+      });
       setSelectedRowCount(0);
       setSelectedRowIds([]);
     }
-  }, [selectedRowCount, selectedRowIds])
+  }, [selectedRowIds, itemId])
 
   const columns = useMemo(() => [
     { field: 'account_name', headerName: 'Account', flex: 1.5 },
@@ -184,6 +192,8 @@ export default function Transaction() {
     setSelectedRowCount(ids.length);
   }, [transactions]) // same function
 
+  if (loadingItemId) return <div>Loading...</div>
+
     return (
       <>
         <div className="flex h-screen text-gray-500">
@@ -201,7 +211,7 @@ export default function Transaction() {
               <SearchTransaction onSearch={setSearchQuery} />
               <button
                 className="cursor-pointer hover:bg-gray-100 hover:rounded-md p-2"
-                //onClick={() => refreshTransactions()}
+                onClick={handleRefresh}
                 title="Refresh"
               >
                 <FiRefreshCw className="transform hover:rotate-360 transition-transform duration-1000 ease-out"/>
@@ -237,7 +247,7 @@ export default function Transaction() {
                     checkboxSelection
                     onRowSelectionModelChange={handleRowSelectionChange}
                     disableRowSelectionOnClick
-                    //loading={loading}
+                    loading={isPending || loadingTransactions}
                     initialState={{
                       pagination: { paginationModel: { pageSize: 10 } },
                     }}
@@ -245,7 +255,7 @@ export default function Transaction() {
                 />
               </div>
               {isEditModalOpen && 
-                <EditTransactionModal
+                <AddAndEditTransactionModal
                   open={isEditModalOpen}
                   onClose={handleCloseEditModal}
                   transaction={selectedTx}
@@ -254,7 +264,7 @@ export default function Transaction() {
                 />
               }
               {isAddModalOpen && 
-                <EditTransactionModal
+                <AddAndEditTransactionModal
                   open={isAddModalOpen}
                   onClose={handleCloseAddModal}
                   itemId={itemId}

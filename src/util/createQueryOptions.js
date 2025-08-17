@@ -1,7 +1,9 @@
 import { queryOptions } from "@tanstack/react-query"
 import { getTransactions } from "../api/transactions"
 import { getAccounts } from "../api/accounts"
-export function createTransactionsQueryOptions(params = {}, options = {}) {
+export function createTransactionsQueryOptions(
+    params = {}, options = {}
+) {
     return queryOptions({
         ...options, 
         queryKey: ["transactions", params],
