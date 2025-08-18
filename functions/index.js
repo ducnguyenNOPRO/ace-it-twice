@@ -2,6 +2,8 @@ const {onCall, HttpsError, onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const {FieldValue} = require("firebase-admin/firestore")
 const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
+const prettyMapCategory = require('./constants/prettyMapCategory');
+const { error } = require("firebase-functions/logger");
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -81,18 +83,17 @@ exports.exchangePublicToken = onCall(async (request) => {
 
     return {success: true, message: "Token Exchange succefully", itemId}
   } catch (error) {
-    console.error("Plaid error:", error.response?.data || error.message || error);
     throw new HttpsError("internal", error.message || "Unknown error with Plaid");
   }
 })
 
-exports.getAccounts = onCall(async (request) => {
+exports.fetchAccountsFromPlaid = onCall(async (request) => {
   if (!request.auth) {
-      throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("Unauthenticated", "User must be logged in");
   }
-
   const uid = request.auth.uid;
   const itemId = request.data.itemId
+  if (!itemId) throw new HttpsError("invalid-argument", "Missing ItemId")
 
   try {
     // Get access token from firestore
@@ -118,7 +119,6 @@ exports.getAccounts = onCall(async (request) => {
     // List of accounts
     const accounts = accountsResponse.data.accounts;
     const result = [];
-    console.log("List of Accounts:", accounts);
 
     // Store accounts in Firestore
     const batch = admin.firestore().batch();  // Used to write multiple documents at once
@@ -127,6 +127,7 @@ exports.getAccounts = onCall(async (request) => {
     accounts.forEach(account => {
       const docRef = accountsRef.doc(account.account_id);
       batch.set(docRef, {
+        account_id: account.account_id,
         name: account.name,
         official_name: account.official_name,
         type: account.type,
@@ -143,18 +144,51 @@ exports.getAccounts = onCall(async (request) => {
     return { success: true, message: "Accounts synced", result };
   }
   catch (error) {
-    console.log("syncAccounts erorr:", error);
     throw new HttpsError("internal", "Fail to sync account.");
   }
 })
 
-exports.getTransactions = onCall(async (request) => {
+exports.getAccounts = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+  const itemId = request.data.itemId;
+
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
+  }
+  try {
+    const accountsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection('accounts');
+    
+    const snapshot = await accountsRef.get();
+
+    const accounts = snapshot.docs.map(doc => doc.data());
+    return {
+      success: true,
+      message: "Transactions fetched DB",
+      count: accounts.length,
+      accounts: accounts
+    };
+  } catch (error) {
+    throw new HttpsError("internal", "Fail to get transactions.");
+  }
+})
+
+exports.fetchTransactionsFromPlaid = onCall(async (request) => {
   if (!request.auth) {
       throw new HttpsError("Unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
   const itemId = request.data.itemId
+
+  if (!itemId) throw new HttpsError("invalid-argument", "Missing itemId");
 
   try {
     // Get access token from firestore
@@ -203,20 +237,19 @@ exports.getTransactions = onCall(async (request) => {
       return {
         transaction_id: tx.transaction_id,
         name: tx.name,
-        merchant_name: tx.merchant_name,
+        merchant_name: tx.merchant_name || tx.name,
         amount: tx.amount,
         iso_currency_code: tx.iso_currency_code,
-        counterparties: tx.counterparties,
         date: tx.date,
-        datetime: tx.datetime,
-        authorized_date: tx.authorized_date,
-        authorized_datetime: tx.authorized_datetime,
+        //datetime: tx.datetime,
+        //authorized_date: tx.authorized_date,
+        //authorized_datetime: tx.authorized_datetime,
         location: tx.location,
         logo_url: tx.logo_url,
         pending: tx.pending,
-        personal_finance_category: tx.personal_finance_category,
-        personal_finance_category_icon_url: tx.personal_finance_category_icon_url,
+        category: prettyMapCategory[tx.personal_finance_category.primary],
         account_id: tx.account_id,
+        notes: '',
 
         // merged account info:
         account_name: accountInfo.name || "Unknown",
@@ -231,29 +264,56 @@ exports.getTransactions = onCall(async (request) => {
     
     transactionsToSave.forEach(transaction => {
       const docRef = transactionRef.doc(transaction.transaction_id);
-      /*batch.set(docRef, {
-        transaction_id: transaction.transaction_id,
-        account_id: transaction.account_id, // match correct account
-        merchant_name: transaction.merchant_name,
-        logo_url: transaction.logo_url,  // merchange logo
-        amount: transaction.amount,
-        date: transaction.date,   // transaction occured
-        authorized_date: transaction.authorized_date,  // authorized by financial institution
-        personal_finance_category: transaction.personal_finance_category,
-        personal_finance_category_icon_url: transaction.personal_finance_category_icon_url,
-        pending: transaction.pending,
-        payment_channel: transaction.payment_channel,        
-        iso_currency_code: transaction.iso_currency_code,
-      }); */
       batch.set(docRef, transaction);
     });
 
     await batch.commit();
 
-    return { success: true, message: "Accounts synced", count: transactionsToSave.length };
+    return {
+      success: true,
+      message: "Accounts synced",
+      count: transactionsToSave.length
+    };
   }
   catch (error) {
-    console.log("getTransactions erorr:", error);
+    throw new HttpsError("internal", "Fail to fetch transactions.");
+  }
+})
+
+exports.getTransactions = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+  const itemId = request.data.itemId;
+
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
+  }
+  try {
+    const transactionsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection('transactions');
+    
+    const snapshot = await transactionsRef
+      .orderBy("date", "desc")
+      .get();
+
+    const transactions = snapshot.docs.map(doc => ({
+      id: doc.id,
+        ...doc.data()
+    }))
+
+    return {
+      success: true,
+      message: "Transactions fetched DB",
+      count: transactions.length,
+      transactions: transactions
+    };
+  } catch (error) {
     throw new HttpsError("internal", "Fail to get transactions.");
   }
 })
@@ -364,7 +424,6 @@ exports.getUser = onCall(async (request) => {
     }
     return userDoc.data();
   } catch (error) {
-    console.error("Error fetching user profile", error);
     throw new HttpsError("internal", "Fail to get user profile")
   }
 })
@@ -387,7 +446,6 @@ exports.updateUserAuth = onCall(async (request) => {
     })
     return {success: true, message: "User profile updated"}
   } catch (error) {
-    console.error("Error updating user in Firebase Auth:", error);
     throw new HttpsError("internal", "Fail to update user")
   }
 })
@@ -406,7 +464,176 @@ exports.updateUser = onCall(async (request) => {
     await admin.firestore().collection("users").doc(uid).set(userData, { merge: true })
     return {success: true, message: "User profile updated"}
   } catch (error) {
-    console.error("Error updating user in Firestore:", error);
     throw new HttpsError("internal", "Fail to update user")
+  }
+})
+
+exports.addTransaction = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const txData = request.data.transaction;
+  const itemId = request.data.itemId;
+
+  console.log("ItemId:", itemId);
+
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
+  }
+  if (!txData) {
+    throw new HttpsError("invalid-argument", "Missing transaction data");
+  }
+
+  try {
+    // Get the Bank document using itemId
+    const newTxDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection("transactions")
+      .doc();
+
+    const newTxDocData = {
+      ...txData,
+      transaction_id: newTxDocRef.id
+    }
+
+    // Save the transaction
+    await newTxDocRef.set(newTxDocData);
+    return {success: true, message: `Transaction added successfully`}
+  } catch (error) {
+    throw new HttpsError("internal", "Fail to add transaction")
+  }
+})
+
+exports.editTransactionById= onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const txId = request.data.transactionId;  // Transaction Id
+  const txData = request.data.transaction;
+  const itemId = request.data.itemId
+
+  if (!txId) {
+    throw new HttpsError("invalid-argument", "Missing transaction Id");
+  }
+  if (!txData) {
+    throw new HttpsError("invalid-argument", "Missing transaction data");
+  }
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
+  }
+
+  try {
+    // Get the Bank document using itemId
+    const txDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection("transactions")
+      .doc(txId);
+
+    // Get transaction doc with Id
+    const txDoc = await txDocRef.get();
+
+    // Prevent editing non-existing document
+    if (!txDoc.exists) {
+      throw new HttpsError("not-found", "Transaction document not found.");
+    }
+    const newTxDocData = {
+      ...txData
+    }
+
+    // Save the transaction
+    await txDocRef.set(newTxDocData, {merge: true});
+    return {success: true, message: `Transaction updated successfully`}
+  } catch (error) {
+    throw new HttpsError("internal", "Fail to update transaction")
+  }
+})
+
+exports.deleteTransactionById= onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+  const txId = request.data.transactionId;  // Transaction Id
+  const itemId = request.data.itemId
+
+  if (!txId) {
+    throw new HttpsError("invalid-argument", "Missing transaction Id");
+  }
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
+  }
+
+  try {
+    // Get the Bank document using itemId
+    const txDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection("transactions")
+      .doc(txId);
+
+    // Get transaction doc with Id
+    const txDoc = await txDocRef.get();
+
+    // Prevent deleting non-existing document
+    if (!txDoc.exists) {
+      throw new HttpsError("not-found", "Transaction document not found.");
+    }
+
+    // Save the transaction
+    await txDocRef.delete();
+    return {success: true, message: `Transaction deleted successfully`}
+  } catch (error) {
+    throw new HttpsError("internal", "Fail to delete transaction")
+  }
+})
+
+exports.deleteBatchTransaction = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const txsToDelete = request.data.selectedTransactionIds;  // Array
+  const itemId = request.data.itemId
+
+  if (!txsToDelete) {
+    throw new HttpsError("invalid-argument", "Missing transactions");
+  }
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing itemId");
+  }
+
+  const batch = admin.firestore().batch(); // used to write multiple documents
+  try {
+    // Get the Bank document using itemId
+    const txCollectionRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection("transactions")
+    
+    txsToDelete.forEach(txId => {
+      const txDocRef = txCollectionRef.doc(txId);
+      batch.delete(txDocRef);
+    })
+
+    await batch.commit();
+
+    return { success: true, message: `Successfully deleted ${txsToDelete.length} transactions` }
+  } catch (error) {
+    throw new HttpsError("internal", "Fail to delete batch transactions")
   }
 })

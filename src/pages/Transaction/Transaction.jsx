@@ -1,63 +1,123 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useRef, useMemo, useCallback, useId } from 'react'
 import { useAuth } from '../../contexts/authContext'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar'
 import './Transaction.css'
 import { DataGrid} from '@mui/x-data-grid'
-import EditTransactionModal from '../../components/Transaction/Modal'
+import AddAndEditTransactionModal from '../../components/Transaction/Modal'
 import RowActionMenu from '../../components/Transaction/RowActionMenu'
-import { IoSearchSharp, IoAddCircleSharp} from 'react-icons/io5'
-import { useTransaction } from '../../contexts/TransactionContext'
+import { IoAddCircleSharp} from 'react-icons/io5'
+import { useItemId } from '../../hooks/useItemId'
 import prettyMapCategory from '../../constants/prettyMapCategory'
+import { FiRefreshCw } from "react-icons/fi"
+import SearchTransaction from '../../components/Transaction/SearchBar'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createTransactionsQueryOptions } from '../../util/createQueryOptions'
+import { deleteBatchTransaction, deleteSingleTransaction, fetchTransactionsFromPlaid } from '../../api/transactions'
 
-// Custom hook for debounced input value
-function useDebounce(value, delay) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
+// Memoized category cell component to prevent re-renders
+const CategoryCell = React.memo(({ value }) => (
+  <div className="flex justify-start items-center h-full w-full">
+    <div
+      title={value ?? prettyMapCategory.Other.name}
+      className={`flex items-center gap-2 rounded-full px-3 py-1 overflow-hidden
+        ${prettyMapCategory[value]?.color ?? prettyMapCategory.Other.color}
+      `}>
+      <img
+        src={prettyMapCategory[value]?.icon || "../../public/icons/badge-question-imark.svg"}
+        alt="Category Icon"
+      />
+      <span className="text-sm font-bold sm:truncate hidden md:inline">
+        {value || "Other"}
+      </span>
+    </div>
+  </div>
+));
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    }
-  }, [value, delay])
-
-  return debouncedValue;
-}
 
 export default function Transaction() {
-  console.log("Transaction rendered")
   const { currentUser } = useAuth();
-  const { transactions } = useTransaction();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10
+  })
+  const [lastDocIds, setLastDocIds] = useState({}) // Store lastDoc for each page
+  const queryClient = useQueryClient();
+  const { itemId, loadingItemId } = useItemId(currentUser.uid);
+  const { data: transactions = [], isLoading: loadingTransactions, refetch: refetchTransactions } = useQuery(
+    createTransactionsQueryOptions(
+      { itemId },
+      {
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false
+      }))
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState(null);
-  const [searchInput, setSearchInput] = useState('');
   const [selectedRowCount, setSelectedRowCount] = useState(0);
-  const [selectedRowIds, setSelectedRowIds] = useState([]);
+  const [selectedRowIds, setSelectedRowIds] = useState([]);  // For Batch transaction deletion
+  
+  // User click refresh button
+  // --> Manually refetch from Plaid
+  // --> read from DB
+  const {mutate, isPending} = useMutation({
+    mutationFn: (itemId) => fetchTransactionsFromPlaid(itemId),
+    onSuccess: () => {
+      // After fetching from Plaid, refetch Firestore
+      refetchTransactions()
+    }
+  })
 
-  // Debounce search input to avoid excessive filtering
-  const debouncedSearchInput = useDebounce(searchInput, 300)
+  // Manually refetch from Plaid
+  const handleRefresh = useCallback(() => {
+    mutate(itemId)
+  }, [itemId]);
 
-  // Memorie function
-  const handleOpenEditModal = useCallback((row) => {
-    console.log('Opening edit modal with row:', row); // ← Add this debug
-    setSelectedTx(row);
-    setIsModalOpen(true);
-  }, []);  // Function stay the same
+  const handleOpenAddModal = useCallback(() => {
+    setIsAddModalOpen(true);
+  }, [])
 
-  const handleCloseModal = useCallback(() => {
-    setIsModalOpen(false);
+  const handleCloseAddModal = useCallback(() => {
+    setIsAddModalOpen(false);
     setSelectedTx(null);
   }, []);
 
-  const handleDeleteTransaction = useCallback((row) => {
+  const handleOpenEditModal = useCallback((row) => {
+    setSelectedTx(row);
+    setIsEditModalOpen(true);
+  }, []);  // Function stay the same
 
+  const handleCloseEditModal = useCallback(() => {
+    setIsEditModalOpen(false);
+    setSelectedTx(null);
   }, []);
 
+  // Delete a single a transaction
+  const handleDeleteSingleTransaction = useCallback(async (row) => {
+    const transactionId = row.id || row.transaction_id;
+    await deleteSingleTransaction(transactionId, itemId);
+    queryClient.invalidateQueries({
+      queryKey: createTransactionsQueryOptions().queryKey
+    });
+  }, [itemId]);
+
+  // Delete many transaction at once
+  const handleDeleteBatchTransactions = useCallback(async () => {
+    const result = await deleteBatchTransaction(selectedRowIds, itemId);
+
+    if (result.data.success) { 
+      queryClient.invalidateQueries({
+        queryKey: createTransactionsQueryOptions().queryKey
+      });
+      setSelectedRowCount(0);
+      setSelectedRowIds([]);
+    }
+  }, [selectedRowIds, itemId])
+
   const columns = useMemo(() => [
-    { field: 'account', headerName: 'Account', flex: 1.5 },
+    { field: 'account_name', headerName: 'Account', flex: 1.5 },
     { field: 'date', headerName: 'Date', flex: 1 },
     {
       field: 'merchant_name',
@@ -68,103 +128,72 @@ export default function Transaction() {
       field: 'category',
       headerName: 'Category',
       renderCell: (params) => (
-        <div className="flex justify-start items-center h-full w-full"> {/* ← Center wrapper */}
-          <div
-            title={prettyMapCategory[params.value].name ?? prettyMapCategory.OTHER.name}
-            className={`flex items-center gap-2 rounded-full px-3 py-1 overflow-hidden
-              ${prettyMapCategory[params.value].color ?? prettyMapCategory.OTHER.color}
-            `}>
-            <img
-              src={prettyMapCategory[params.value].icon
-                || "../../public/icons/badge-question-imark.svg"}
-              alt="Category Icon"
-            />
-            <span className="text-sm font-bold sm:truncate hidden md:inline">
-              {prettyMapCategory[params.value].name || "Other"}
-            </span>
-          </div>
-        </div>
+        <CategoryCell value={params.value} />
       ),
       flex: 1,
-  },
-  {
-    field: 'amount',
-    headerName: 'Amount',
-    flex: 0.7,
-    renderCell: (params) => (
-      <span className={params.value > 0 ? 'text-red-500' : 'text-green-600'}>
-        ${Math.abs(params.value).toFixed(2)}
-      </span>
-    ),
-  },
-  {
-    field: 'actions',
-    headerName: 'Actions',
-    flex: 0.5,
-    sortable: false,
-    filterable: false,
-    disableColumnMenu: true,
-    renderCell: (params) => (
-      <RowActionMenu
-        row={params.row}
-        handleOpenEditModal={handleOpenEditModal}
-        handleDeleteTransaction={handleDeleteTransaction}
-      />
-    )
-  }
-  ], [handleOpenEditModal, handleDeleteTransaction]);
-  
-  // Format rows only when transactions change (not on every render)
-  const formattedRows = useMemo(() => {
-    return transactions.map((tx) => ({
-      id: tx.transaction_id,
-      merchant_name: tx.merchant_name || tx.name,
-      amount: tx.amount,
-      date: tx.date,
-      category: tx.personal_finance_category?.primary || 'Uncategorized',
-      account: `${tx.account_name}`,
-    }));
-  }, [transactions]);
-
-  const filteredRows = useMemo(() => {
-    if (!debouncedSearchInput.trim()) {
-      return formattedRows;  // Return same rows
-    }
-
-    const searchTerm = debouncedSearchInput.toLowerCase().trim();
-
-    return formattedRows.filter((row) => {
-      return (
-        row.merchant_name?.toLowerCase().includes(searchTerm) ||
-        row.category?.toLowerCase().includes(searchTerm) ||
-        row.account?.toLowerCase().includes(searchTerm) ||
-        row.date?.toLowerCase().includes(searchTerm) ||
-        row.amount?.toString().includes(searchTerm)
+    },
+    {
+      field: 'amount',
+      headerName: 'Amount',
+      flex: 0.7,
+      renderCell: (params) => (
+        <span className={params.value > 0 ? 'text-red-500' : 'text-green-600'}>
+          ${Math.abs(params.value).toFixed(2)}
+        </span>
+      ),
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      flex: 0.5,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params) => (
+        <RowActionMenu
+          row={params.row}
+          handleOpenEditModal={handleOpenEditModal}
+          handleDeleteTransaction={handleDeleteSingleTransaction}
+        />
       )
-    })
-  }, [formattedRows, debouncedSearchInput])
+    }
+  ], [handleOpenEditModal, handleDeleteSingleTransaction]);
+
+  const filteredTransactions = useMemo(() => {
+    if (!searchQuery || searchQuery.length === 0) return transactions;
+    return transactions.filter((tx) =>
+      tx.account_name.toLowerCase().includes(searchQuery) ||
+      tx.date.toLowerCase().includes(searchQuery) ||
+      tx.merchant_name.toLowerCase().includes(searchQuery) ||
+      tx.category.toLowerCase().includes(searchQuery) ||
+      tx.amount.toString().toLowerCase().includes(searchQuery)
+    );
+  }, [transactions, searchQuery]);
 
   // Memoize row selection handler
   const handleRowSelectionChange = useCallback((newSelection) => {
     let ids = [];
-    // newSelection.ids is type
+    // newSelection.ids is type Set
     if (newSelection?.type === 'include') {
+      // inclde type = selected transaciton stored in ids Set
       setSelectedRowCount(newSelection.ids.size);
       setSelectedRowIds(Array.from(newSelection.ids)); // Convert Set to Array
       return;
     }
     if (newSelection?.type === 'exclude') {
       const excluded = newSelection.ids || new Set();
-      ids = filteredRows.filter(row => !excluded.has(String(row.id))).map(row => row.id);
+      // exclude type = transactions that are not selected
+      // are now store in ids.
+      // Keep the selected transactions by filtering the non selected txs
+      ids = transactions.filter(row => !excluded.has(String(row.id))).map(row => row.id);
+      console.log(ids);
     }
     setSelectedRowIds(ids);
     setSelectedRowCount(ids.length);
-  }, [filteredRows]) // same function
+  }, [transactions]) // same function
 
-  // Memoize search input handler
-  const handleSearchInputChange = useCallback((e) => {
-    setSearchInput(e.target.value);
-  }, [])  // same function
+  if (loadingItemId) return <div>Loading...</div>
+
     return (
       <>
         <div className="flex h-screen text-gray-500">
@@ -177,31 +206,34 @@ export default function Transaction() {
             <Topbar pageName='Transaction' userFirstInitial={currentUser.displayName?.charAt(0)} />             
             
             <span className="w-full h-px bg-gray-200 block my-5"></span>
-
-            {/* Search transaction */}
-            <div className="flex items-center justify-between mb-2 mx-2">
-              <div className="relative grow mr-4">
-                  <IoSearchSharp className="absolute top-1/2 left-2 transform -translate-y-1/2" />
-                  <input 
-                    id="searchTransaction"
-                    value={searchInput}
-                    onChange={handleSearchInputChange}
-                    placeholder="Search for a transaction"
-                    className="w-full pl-8 py-1 tracking-wider text-md text-black bg-white border-2 border-gray-300 rounded-md "
-                  />
-              </div>
+            <div className="flex items-center justify-between mb-2 mx-2 gap-1">
+              {/* Search transaction */}
+              <SearchTransaction onSearch={setSearchQuery} />
+              <button
+                className="cursor-pointer hover:bg-gray-100 hover:rounded-md p-2"
+                onClick={handleRefresh}
+                title="Refresh"
+              >
+                <FiRefreshCw className="transform hover:rotate-360 transition-transform duration-1000 ease-out"/>
+              </button>          
               <div className="flex items-center gap-3">
+                {/* Add transaction */}    
                 <button
                   className="flex items-center gap-1 py-1 px-3 bg-black text-white rounded-md font-medium hover:opacity-80 transition cursor-pointer"
+                  onClick={handleOpenAddModal}
                 >
                   <IoAddCircleSharp/>
                   <span>Add Transaction</span>
                 </button>
+                {/* Delete batch transaction */}    
                 <button
                   className="flex items-center gap-1 py-1 px-3 bg-red-600 text-white rounded-md font-medium hover:opacity-80 transition cursor-pointer"
+                  onClick={handleDeleteBatchTransactions}
                 >
                   <IoAddCircleSharp />
-                  <span>Delete Selected ({selectedRowCount})</span>
+                  <span>
+                    {selectedRowCount > 0 ? `Delete Selected (${selectedRowCount})` : 'Delete'}
+                  </span>
                 </button>
               </div>
             </div>
@@ -209,24 +241,36 @@ export default function Transaction() {
             <section>
                 <div className="w-full">
                   <DataGrid
-                    rows={filteredRows}
+                    rows={filteredTransactions}
                     columns={columns}
                     disableColumnResize={true}
                     checkboxSelection
                     onRowSelectionModelChange={handleRowSelectionChange}
                     disableRowSelectionOnClick
-                    loading={!filteredRows}
+                    loading={isPending || loadingTransactions}
                     initialState={{
-                      pagination: { paginationModel: { pageSize: 5 } },
+                      pagination: { paginationModel: { pageSize: 10 } },
                     }}
                     pageSizeOptions={[5, 10, 25, { value: -1, label: 'All' }]}
                 />
-                    </div>
-                    <EditTransactionModal
-                      open={isModalOpen}
-                      onClose={handleCloseModal}
-                      transaction={selectedTx}
-                    />
+              </div>
+              {isEditModalOpen && 
+                <AddAndEditTransactionModal
+                  open={isEditModalOpen}
+                  onClose={handleCloseEditModal}
+                  transaction={selectedTx}
+                  itemId={itemId}
+                  mode="Edit"
+                />
+              }
+              {isAddModalOpen && 
+                <AddAndEditTransactionModal
+                  open={isAddModalOpen}
+                  onClose={handleCloseAddModal}
+                  itemId={itemId}
+                  mode="Add"
+                />
+              }
             </section>
           </div>
         </div>

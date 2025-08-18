@@ -10,11 +10,9 @@ import Setting from './pages/Setting/Setting'
 import Goal from './pages/Goal'
 import ProtectedRoute from './components/ProtectRoute'
 import './App.css'
-import { TransactionProvider } from './contexts/TransactionContext'
-import { useAuth } from './contexts/authContext'
+import { ToastContainer } from 'react-toastify'
 
 function App() {
-  const { currentUser} = useAuth();
   return (
     <>
       <Routes>
@@ -25,21 +23,26 @@ function App() {
         <Route path="/Setting" element={<ProtectedRoute> <Setting /> </ProtectedRoute>}/>
         <Route path="/Dashboard" element={
           <ProtectedRoute>
-            <TransactionProvider>
-              <Dashboard />
-            </TransactionProvider>
+            <Dashboard />
           </ProtectedRoute>}
         />
         <Route path="/Transaction" element={
           <ProtectedRoute>
-            <TransactionProvider>
-              <Transaction/>
-            </TransactionProvider>
+            <Transaction />
           </ProtectedRoute>}
         />
         <Route path="/SpendingPlan" element={<ProtectedRoute> <SpendingPlan /> </ProtectedRoute>} />
         <Route path="/Goal" element={<ProtectedRoute> <Goal /> </ProtectedRoute>} />
-        </Routes>
+      </Routes>
+      <ToastContainer
+        position="bottom-right"
+        autoClose={3000} // close after 3 seconds
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        pauseOnHover
+        draggable
+      />
     </>
   )
 }

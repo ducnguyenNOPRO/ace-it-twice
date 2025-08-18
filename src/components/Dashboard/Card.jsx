@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function Card({ account }) {
+export default function Card({account}) {
     const subtype = account?.subtype?? 'N/A';
     const formattedSubtype = subtype
         ? subtype

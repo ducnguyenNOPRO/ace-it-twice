@@ -2,112 +2,311 @@ import Dialog from "@mui/material/Dialog"
 import DialogContent from "@mui/material/DialogContent"
 import DialogTitle from "@mui/material/DialogTitle"
 import TextField from "@mui/material/TextField"
-import React, { useState, useEffect } from "react"
+import React, { useState, useMemo, useCallback } from "react"
 import MenuItem from "@mui/material/MenuItem"
 import DialogActions from "@mui/material/DialogActions"
 import Button from "@mui/material/Button"
+import Tooltip from "@mui/material/Tooltip"
+import { IoIosHelpCircleOutline } from "react-icons/io"
 import prettyMapCategory from "../../constants/prettyMapCategory"
+import { functions } from "../../firebase/firebase"
+import { httpsCallable } from "firebase/functions"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import showToastDuringAsync from "../../util/showToastDuringAsync"
+import { addTransaction, editTransactionById } from "../../api/transactions"
+import { createAccountsQueryOptions, createTransactionsQueryOptions } from "../../util/createQueryOptions"
 
-export default function EditTransactionModal({ open, onClose, transaction }) {
-    console.log('Modal received transaction:', transaction); // ← Add this debug
-    const [formData, setFormData] = useState({
-        account: '',
-        date: '',
-        merchant_name: '',
-        category: '',
-        amount: '',
-        notes: ''
-    })
-
-    const handleInputChange = () => {
-
+export default function AddAndEditTransactionModal({ open, onClose, mode, transaction, itemId }) {
+    const queryClient = useQueryClient();
+    // default to empty [] till fetched
+    const { data: accounts = [], isLoading: loadingAccs } = useQuery(
+        createAccountsQueryOptions({ itemId },
+          {
+            staleTime: Infinity,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false
+    }))
+    const [errors, setErrors] = useState({});
+    
+    if (!open) {
+        return null;
     }
-    useEffect(() => {
-        if (transaction) {
-            setFormData({
-                account: transaction.account || '',
-                date: transaction.date || '',
-                merchant_name: transaction.merchant_name || '',
-                category: prettyMapCategory[transaction.category].name,
-                amount: transaction.amount,
-                notes: transaction.notes || ''
-            })
+
+    if (mode === "Edit") {
+        if (!transaction || loadingAccs) {
+            return (
+                <Dialog open={open} onClose={onClose}>
+                    <DialogContent>
+                        <div>Loading...</div>
+                    </DialogContent>
+                </Dialog>
+            );
         }
-    }, [transaction])
-    return (
-        <Dialog
-            open={open}
-            onClose={onClose}
-        >
-            <DialogTitle>Edit Transaction</DialogTitle>
-            <DialogContent dividers>
-                <TextField
-                    fullWidth
-                    margin="normal"
-                    label="Account"
-                    name="account"
-                    value={formData.account}
-                    onChange={handleInputChange}
-                />
-                <TextField
-                    fullWidth
-                    type="date"
-                    margin="normal"
-                    label="Date"
-                    name="date"
-                    value={formData.date}
-                    onChange={handleInputChange}
-                />
-                <TextField
-                    fullWidth
-                    margin="normal"
-                    label="Merchant Name"
-                    name="merchant_name"
-                    value={formData.merchant_name}
-                    onChange={handleInputChange}
-                />
-                <TextField
-                    fullWidth
-                    select
-                    margin="normal"
-                    label="Category"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
+    }
+
+    const defaultValues = useMemo(() => ({
+        account_name: transaction?.account_name || '',
+        account_mask: transaction?.account_mask || '',
+        date: transaction?.date || '',
+        merchant_name: transaction?.merchant_name || '',
+        category: transaction?.category || '',
+        amount: transaction?.amount || 0,
+        notes: transaction?.notes || '',
+        pending: transaction?.pending || 'true'
+    }), [transaction]);
+
+    // Memmoize category options to prevent re-rendering
+    const categoryOptions = useMemo(() => {
+        return Object.entries(prettyMapCategory).map(([key]) => 
+            (
+            <MenuItem
+                key={key}
+                value={key}
+                sx={{
+                    '&:hover': {
+                        backgroundColor: "#def6f8",
+                        color: 'black'
+                    }
+                }}
+            >
+                {key}
+            </MenuItem>
+        ))
+    }, [])
+    
+    const accountOptions = useMemo(() => {
+        return (
+            accounts.map((account) => (
+                <MenuItem
+                    key={account.id}
+                    value={account.name}
+                    sx={{
+                        '&:hover': {
+                            backgroundColor: "#def6f8",
+                            color: 'black'
+                        }
+                    }}
                 >
-                    <MenuItem value="Shopping">Shopping</MenuItem>
-                    <MenuItem value="Food">Food</MenuItem>
-                    <MenuItem value="Transportation">Transportation</MenuItem>
-                    <MenuItem value="Utilities">Utilities</MenuItem>
-                    <MenuItem value="Entertainment">Entertainment</MenuItem>
-                    <MenuItem value="Other">Other</MenuItem>
-                </TextField>
-                <TextField
-                    fullWidth
-                    margin="normal"
-                    label="Amount"
-                    name="amount"
-                    type="number"
-                    value={formData.amount}
-                />
-                <TextField
-                    fullWidth
-                    margin="normal"
-                    multiline
-                    rows={3}
-                    label="Notes"
-                    name="notes"
-                    value={formData.notes}
-                />
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>
-                    Close
-                </Button>
-                <Button>
-                    Save
-                </Button>
-            </DialogActions>
+                    {account.name} - {account.mask}
+                </MenuItem>
+            ))
+        )
+    }, [accounts])
+
+    const validateInput = useCallback((data) => {
+        const newErrors = {};
+
+        if (!data.account_name) {
+            newErrors.account_name = "Account is required";
+        }
+        if (!data.date) {
+            newErrors.date = "Date is required";
+        }
+        if (!data.merchant_name) {
+            newErrors.merchant_name = "Merchant name is required";
+        }
+        if (!data.category) {
+            newErrors.category = "Must select a category";
+        }
+        if (!data.pending) {
+            newErrors.pending = "Provide a pending status";
+        }
+        if (!data.amount) {
+            newErrors.amount = "Amount is required, Check ? for more details";
+        } else if (isNaN(Number(data.amount))) {
+            newErrors.amount = "Amount must be a number";
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    }, [])  
+
+    const handleSubmit = useCallback(async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget)
+        const formValues = Object.fromEntries(formData.entries());
+
+        const validate = validateInput(formValues);
+        
+        if (!validate) {
+           return;
+        }
+        // Find the account name and mask
+        const account = accounts.find(acc => 
+            acc.name.toLowerCase() === formValues.account_name.toLowerCase()        
+        )
+
+        if (mode === "Add") {
+            const txToSave = {
+                ...formValues,
+                amount: Number(formValues.amount),
+                pending: formValues.pending === "true" || formValues.pending === true,
+                account_mask: account.mask,
+                account_id: account.account_id,
+                iso_currency_code: "USD",
+            }
+            await addTransaction(txToSave, itemId, onClose);
+            queryClient.invalidateQueries({
+                  queryKey: createTransactionsQueryOptions().queryKey
+            });
+        } else if (mode === "Edit") {
+            const txId = transaction.transaction_id || transaction.id;
+            const txToSave = {
+                ...formValues,
+                amount: Number(formValues.amount),
+                account_mask: account.mask,
+                account_id: account.account_id,
+            }
+            await editTransactionById(txId, txToSave, itemId, onClose);
+            queryClient.invalidateQueries({
+                  queryKey: createTransactionsQueryOptions().queryKey
+            });
+        }
+    }, [validateInput, errors])
+
+    return (
+        <Dialog open={open} onClose={onClose}>
+            <form onSubmit={handleSubmit}>
+                <DialogTitle>{mode} Transaction</DialogTitle>      
+                <DialogContent dividers>
+                    <p className="text-right text-red-500">* All fields are required, except Notes</p>
+                    <TextField
+                        select
+                        margin="normal"
+                        label="Account Name"
+                        name="account_name"
+                        defaultValue={defaultValues.account_name}
+                        error={!!errors.account_name}
+                        helperText={errors.account_name}
+                        fullWidth
+                    >
+                        {accountOptions}
+                    </TextField>
+                    <TextField
+                        fullWidth
+                        margin="normal"
+                        label="Merchant Name"
+                        name="merchant_name"
+                        defaultValue={defaultValues.merchant_name}
+                        error={!!errors.merchant_name}
+                        helperText={errors.merchant_name}
+                    />
+                    <TextField
+                        fullWidth
+                        type="date"
+                        margin="normal"
+                        label="Date"
+                        name="date"
+                        defaultValue={defaultValues.date}
+                        error={!!errors.date}
+                        helperText={errors.date}
+                        slotProps={{
+                            inputLabel: {
+                                shrink: true
+                            }
+                        }}
+                    />
+                    <TextField
+                        fullWidth
+                        select
+                        margin="normal"
+                        label="Pending"
+                        name="pending"
+                        defaultValue={defaultValues.pending}
+                        error={!!errors.pending}
+                        helperText={errors.pending}
+                        slotProps={{
+                            inputLabel: {
+                                shrink: true
+                            }
+                        }}
+                    >
+                        <MenuItem 
+                            value="true"
+                            sx={{
+                                '&:hover': {
+                                    backgroundColor: "#def6f8",
+                                    color: 'black'
+                                }
+                            }}
+                        >
+                            Yes
+                            </MenuItem>
+                        <MenuItem
+                            value="false"
+                            sx={{
+                                '&:hover': {
+                                    backgroundColor: "#def6f8",
+                                    color: 'black'
+                                }
+                            }}
+                        >
+                            No
+                        </MenuItem>
+                    </TextField>
+                    <TextField
+                        fullWidth
+                        select
+                        margin="normal"
+                        label="Category"
+                        name="category"
+                        defaultValue={defaultValues.category}
+                        error={!!errors.category}
+                        helperText={errors.category}
+                        slotProps={{
+                            select: {
+                                MenuProps: {
+                                    PaperProps: {
+                                        sx: {
+                                            maxHeight: 200,
+                                        },
+                                    }
+                                }
+                            }
+                        }}
+                    >
+                        {categoryOptions}
+                    </TextField>
+                    <TextField
+                        fullWidth
+                        margin="normal"
+                        label={
+                            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                Amount
+                                <Tooltip title="Use positive number for expense, negative for income" arrow>
+                                    <IoIosHelpCircleOutline className="text-2xl text-blue"/>
+                                </Tooltip>
+                            </span>
+                        }
+                        name="amount"
+                        slotProps={{
+                            inputLabel: {
+                                shrink: true
+                            }
+                        }}
+                        defaultValue={defaultValues.amount}
+                        error={!!errors.amount}
+                        helperText={errors.amount}
+                    />
+                    <TextField
+                        fullWidth
+                        margin="normal"
+                        multiline
+                        rows={3}
+                        label="Notes"
+                        name="notes"
+                        defaultValue={defaultValues.notes}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={onClose}>
+                        Close
+                    </Button>
+                    <Button type="submit">
+                        Save
+                    </Button>
+                </DialogActions>
+            </form>
         </Dialog>
     )
 }

@@ -47,26 +47,26 @@ export default function TransactionHistory({ transactions }) {
                             {/* Background and text color */}
                         <div
                             className={`inline-flex items-center gap-2 rounded-full px-3 py-1 sm:w-fit overflow-hidden
-                                ${prettyMapCategory[tx.personal_finance_category.primary].color ??  prettyMapCategory.OTHER.color}
+                                ${prettyMapCategory[tx.category].color ??  prettyMapCategory.Other.color}
                             `}
-                            title={prettyMapCategory[tx.personal_finance_category.primary].name ?? prettyMapCategory.OTHER.name} // optional tooltip
+                            title={tx.cateogry ?? prettyMapCategory.Other.name} // optional tooltip
                         >
                             {/* Icon */}
                             <img
-                                src={prettyMapCategory[tx.personal_finance_category.primary].icon
+                                src={prettyMapCategory[tx.category].icon
                                     || "../../public/icons/badge-question-imark.svg"}
                                 alt="Category Icon"
                                 className="m-auto"
                             />
                             {/* Category Name */}
                             <span className="text-sm font-bold sm:truncate hidden md:inline">
-                                {prettyMapCategory[tx.personal_finance_category.primary].name || "Other"}
+                                {tx.category || "Other"}
                             </span>
                         </div>    
 
                         {/* Amount */}
                         <div className={tx.amount > 0 ? "text-red-500" : "text-green-500"}>
-                        {tx.amount > 0 ? `-$${tx.amount}` : `$${Math.abs(tx.amount)}`}
+                            {tx.amount > 0 ? `-$${tx.amount}` : `$${Math.abs(tx.amount)}`}
                         </div>
                         <span className="col-span-3 h-px bg-gray-200 block"></span>
                     </React.Fragment>
