@@ -6,7 +6,12 @@ export function createTransactionsQueryOptions(
 ) {
     return queryOptions({
         ...options, 
-        queryKey: ["transactions", params],
+        queryKey: ["transactions",
+            params.itemId,
+            params.page,
+            params.pageSize,
+            params.lastDocumentId ?? null
+        ],
         queryFn: () => getTransactions(params),
     })
 }

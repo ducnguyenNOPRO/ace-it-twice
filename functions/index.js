@@ -280,16 +280,22 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
   }
 })
 
+// Cursor based Pagination
 exports.getTransactions = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("Unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
-  const itemId = request.data.itemId;
+  const { itemId, page = 0, pageSize = 5, lastDocumentId = null } = request.data;
 
   if (!itemId) {
     throw new HttpsError("invalid-argument", "Missing Item Id");
   }
+
+  if (pageSize < 1 || pageSize > 100) {
+    throw new HttpsError("invalid-argument", "Out of bound page size");
+  }
+
   try {
     const transactionsRef = admin.firestore()
       .collection('users')
@@ -298,22 +304,49 @@ exports.getTransactions = onCall(async (request) => {
       .doc(itemId)
       .collection('transactions');
     
-    const snapshot = await transactionsRef
-      .orderBy("date", "desc")
-      .get();
+    // Use count() aggregation (Admin SDK doesn’t have getCountFromServer)
+    const totalCountSnapshot = await transactionsRef.count().get();
+    const totalDocs = totalCountSnapshot.data().count;
+    
+    let query = transactionsRef.orderBy("date", "desc")
 
+    // Start after the lastDocumentId
+    if (lastDocumentId) {
+      const lastDocRef = transactionsRef.doc(lastDocumentId);
+      const lastDocSnapshot = await lastDocRef.get();
+
+      if (!lastDocSnapshot.exists) {
+        throw new HttpsError("invalid-argument", "Invalid cursor document");
+      }
+
+      query = query.startAfter(lastDocSnapshot);
+    }
+
+    const snapshot = await query.limit(pageSize).get();
+
+    const hasNextPage = snapshot.docs.length === pageSize;
     const transactions = snapshot.docs.map(doc => ({
       id: doc.id,
         ...doc.data()
     }))
 
+    const nextCursorId = transactions.length > 0 ? transactions[transactions.length - 1].id : null;
+
     return {
       success: true,
       message: "Transactions fetched DB",
-      count: transactions.length,
-      transactions: transactions
+      totalCount: totalDocs,
+      transactions: transactions,
+      pagination: {
+        page,
+        pageSize,
+        hasNextPage,
+        nextCursor: hasNextPage ? nextCursorId : null,
+        count: transactions.length
+      }
     };
   } catch (error) {
+    console.log(error);
     throw new HttpsError("internal", "Fail to get transactions.");
   }
 })

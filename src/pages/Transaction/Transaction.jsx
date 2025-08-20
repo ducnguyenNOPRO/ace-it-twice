@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback, useId } from 'react'
+import React, { useState, useRef, useMemo, useCallback, useId, useEffect } from 'react'
 import { useAuth } from '../../contexts/authContext'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar'
@@ -39,41 +39,45 @@ export default function Transaction() {
   const { currentUser } = useAuth();
   const [paginationModel, setPaginationModel] = useState({
     page: 0,
-    pageSize: 10
+    pageSize: 5
   })
-  const [lastDocIds, setLastDocIds] = useState({}) // Store lastDoc for each page
+  const [lastDocumentIds, setLastDocumentIds] = useState({})
   const queryClient = useQueryClient();
   const { itemId, loadingItemId } = useItemId(currentUser.uid);
-  const { data: transactions = [], isLoading: loadingTransactions, refetch: refetchTransactions } = useQuery(
+  const { data, isLoading: loadingTransactions} = useQuery(
     createTransactionsQueryOptions(
-      { itemId },
+      {
+        itemId,
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        lastDocumentId: paginationModel.page > 0 ? lastDocumentIds[paginationModel.page - 1] : null,
+      },
       {
         staleTime: Infinity,
         refetchOnWindowFocus: false,
-        refetchOnReconnect: false
+        refetchOnReconnect: false,
+        enabled: !!itemId
       }))
+    console.log(queryClient.getQueryCache().getAll());
   const [searchQuery, setSearchQuery] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState(null);
   const [selectedRowCount, setSelectedRowCount] = useState(0);
   const [selectedRowIds, setSelectedRowIds] = useState([]);  // For Batch transaction deletion
-  
-  // User click refresh button
-  // --> Manually refetch from Plaid
-  // --> read from DB
-  const {mutate, isPending} = useMutation({
-    mutationFn: (itemId) => fetchTransactionsFromPlaid(itemId),
-    onSuccess: () => {
-      // After fetching from Plaid, refetch Firestore
-      refetchTransactions()
-    }
-  })
 
-  // Manually refetch from Plaid
-  const handleRefresh = useCallback(() => {
-    mutate(itemId)
-  }, [itemId]);
+  const transactions = data?.transactions ?? [];
+  const pagination = data?.pagination ?? {};
+
+  useEffect(() => {
+    if (pagination?.nextCursor) {
+      setLastDocumentIds((prev) => ({
+        ...prev,
+        [pagination.page]: pagination.nextCursor
+      }))
+    }
+  }, [pagination])
+
 
   const handleOpenAddModal = useCallback(() => {
     setIsAddModalOpen(true);
@@ -192,6 +196,10 @@ export default function Transaction() {
     setSelectedRowCount(ids.length);
   }, [transactions]) // same function
 
+  const handlePaginationModelChange = useCallback((newModel) => {
+    setPaginationModel(newModel);
+  }, []);
+
   if (loadingItemId) return <div>Loading...</div>
 
     return (
@@ -209,13 +217,7 @@ export default function Transaction() {
             <div className="flex items-center justify-between mb-2 mx-2 gap-1">
               {/* Search transaction */}
               <SearchTransaction onSearch={setSearchQuery} />
-              <button
-                className="cursor-pointer hover:bg-gray-100 hover:rounded-md p-2"
-                onClick={handleRefresh}
-                title="Refresh"
-              >
-                <FiRefreshCw className="transform hover:rotate-360 transition-transform duration-1000 ease-out"/>
-              </button>          
+      
               <div className="flex items-center gap-3">
                 {/* Add transaction */}    
                 <button
@@ -239,20 +241,22 @@ export default function Transaction() {
             </div>
 
             <section>
-                <div className="w-full">
-                  <DataGrid
-                    rows={filteredTransactions}
-                    columns={columns}
-                    disableColumnResize={true}
-                    checkboxSelection
-                    onRowSelectionModelChange={handleRowSelectionChange}
-                    disableRowSelectionOnClick
-                    loading={isPending || loadingTransactions}
-                    initialState={{
-                      pagination: { paginationModel: { pageSize: 10 } },
-                    }}
-                    pageSizeOptions={[5, 10, 25, { value: -1, label: 'All' }]}
-                />
+              <div className="w-full">
+                <DataGrid
+                  rows={filteredTransactions}
+                  columns={columns}
+                  disableColumnResize={true}
+                  checkboxSelection
+                  paginationMode="server"
+                  paginationModel={paginationModel}
+                  rowCount={data?.totalCount}
+                  disableRowSelectionOnClick
+                  loading={loadingTransactions}
+                  pageSizeOptions={[5, 10, 25]}
+                  onPaginationModelChange={handlePaginationModelChange}
+                  onRowSelectionModelChange={handleRowSelectionChange}
+                  hideFooterPagination={loadingTransactions}
+              />
               </div>
               {isEditModalOpen && 
                 <AddAndEditTransactionModal

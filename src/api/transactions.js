@@ -10,13 +10,13 @@ export async function fetchTransactionsFromPlaid(itemId) {
     await fetchTransactions({ itemId });
 }
 
-export async function getTransactions({ itemId }) {
+export async function getTransactions({ itemId, page = 0, pageSize = 5, lastDocumentId = null }) {
     if (!itemId) throw new Error("Frontend: Missing itemId");
 
     const getTransactions = httpsCallable(functions, "getTransactions");
-    const { data } = await getTransactions({ itemId });
+    const { data } = await getTransactions({ itemId, page, pageSize, lastDocumentId });
 
-    return data.transactions;
+    return data;
 }
 
 export async function addTransaction(transactionData, itemId, onClose) {
