@@ -507,7 +507,7 @@ exports.addTransaction = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const txData = request.data.transaction;
+  const transactionData = request.data.transaction;
   const itemId = request.data.itemId;
 
   console.log("ItemId:", itemId);
@@ -515,12 +515,12 @@ exports.addTransaction = onCall(async (request) => {
   if (!itemId) {
     throw new HttpsError("invalid-argument", "Missing Item Id");
   }
-  if (!txData) {
+  if (!transactionData) {
     throw new HttpsError("invalid-argument", "Missing transaction data");
   }
 
   try {
-    // Get the Bank document using itemId
+    // Create a new doc ref with an auto generated ID
     const newTxDocRef = admin.firestore()
       .collection('users')
       .doc(uid)
@@ -530,11 +530,11 @@ exports.addTransaction = onCall(async (request) => {
       .doc();
 
     const newTxDocData = {
-      ...txData,
+      ...transactionData,
       transaction_id: newTxDocRef.id
     }
 
-    // Save the transaction
+    // Add the transaction
     await newTxDocRef.set(newTxDocData);
     return {success: true, message: `Transaction added successfully`}
   } catch (error) {
@@ -548,14 +548,14 @@ exports.editTransactionById= onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const txId = request.data.transactionId;  // Transaction Id
-  const txData = request.data.transaction;
+  const transactionToUpdateId = request.data.transactionToUpdateId;  // Transaction Id
+  const transactionData = request.data.transactionData;
   const itemId = request.data.itemId
 
-  if (!txId) {
+  if (!transactionToUpdateId) {
     throw new HttpsError("invalid-argument", "Missing transaction Id");
   }
-  if (!txData) {
+  if (!transactionData) {
     throw new HttpsError("invalid-argument", "Missing transaction data");
   }
   if (!itemId) {
@@ -564,29 +564,22 @@ exports.editTransactionById= onCall(async (request) => {
 
   try {
     // Get the Bank document using itemId
-    const txDocRef = admin.firestore()
+    const transactionDocRef = admin.firestore()
       .collection('users')
       .doc(uid)
       .collection('plaid')
       .doc(itemId)
       .collection("transactions")
-      .doc(txId);
-
-    // Get transaction doc with Id
-    const txDoc = await txDocRef.get();
-
-    // Prevent editing non-existing document
-    if (!txDoc.exists) {
-      throw new HttpsError("not-found", "Transaction document not found.");
-    }
-    const newTxDocData = {
-      ...txData
+      .doc(transactionToUpdateId);
+    
+    const newTransactionData = {
+      ...transactionData
     }
 
-    // Save the transaction
-    await txDocRef.set(newTxDocData, {merge: true});
+    await transactionDocRef.update(newTransactionData);
     return {success: true, message: `Transaction updated successfully`}
   } catch (error) {
+    console.error(error);
     throw new HttpsError("internal", "Fail to update transaction")
   }
 })

@@ -37,10 +37,14 @@ const CategoryCell = React.memo(({ value }) => (
 
 export default function Transaction() {
   const { currentUser } = useAuth();
-  const [paginationModel, setPaginationModel] = useState({
+  const [paginationModel, setPaginationModel] = useState({  // Manually handle page model
     page: 0,
     pageSize: 5
   })
+  const [rowSelectionModel, setRowSelectionModel] = useState({  // Manually handle row model
+    type: "include",
+    ids: new Set(),
+  });
   const [lastDocumentIds, setLastDocumentIds] = useState({})
   const queryClient = useQueryClient();
   const { itemId, loadingItemId } = useItemId(currentUser.uid);
@@ -58,7 +62,6 @@ export default function Transaction() {
         refetchOnReconnect: false,
         enabled: !!itemId
       }))
-    console.log(queryClient.getQueryCache().getAll());
   const [searchQuery, setSearchQuery] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -69,7 +72,7 @@ export default function Transaction() {
   const transactions = data?.transactions ?? [];
   const pagination = data?.pagination ?? {};
 
-  useEffect(() => {
+  useEffect(() => { 
     if (pagination?.nextCursor) {
       setLastDocumentIds((prev) => ({
         ...prev,
@@ -120,6 +123,36 @@ export default function Transaction() {
     }
   }, [selectedRowIds, itemId])
 
+  const handleRowSelectionChange = useCallback((newRowSelectionModel) => {
+    setRowSelectionModel(newRowSelectionModel)
+    let ids = [];
+    if (newRowSelectionModel?.type === 'include') {
+      // "include" type = selected transactions stored in ids Set
+      setSelectedRowCount(newRowSelectionModel.ids.size);
+      setSelectedRowIds(Array.from(newRowSelectionModel.ids)); // Convert Set to Array
+      return;
+    }
+    if (newRowSelectionModel?.type === 'exclude') {
+      const excluded = newRowSelectionModel.ids || new Set();
+      // "exclude" type = transactions that are not selected are store in ids.
+      // Keep the selected transactions by filtering the non selected txs
+      ids = transactions.filter(row => !excluded.has(String(row.id))).map(row => row.id);
+      setSelectedRowIds(ids);
+      setSelectedRowCount(ids.length);
+    }
+
+  }, [transactions]) // same function
+
+  const handlePaginationModelChange = useCallback((newModel) => {
+    // Reset row selection model
+    // Uncheck all rows
+    setRowSelectionModel({ type: "include", ids: new Set() });
+    setPaginationModel(newModel);
+
+    setSelectedRowCount(0);
+    setSelectedRowIds([]);
+  }, []);
+
   const columns = useMemo(() => [
     { field: 'account_name', headerName: 'Account', flex: 1.5 },
     { field: 'date', headerName: 'Date', flex: 1 },
@@ -162,43 +195,6 @@ export default function Transaction() {
       )
     }
   ], [handleOpenEditModal, handleDeleteSingleTransaction]);
-
-  const filteredTransactions = useMemo(() => {
-    if (!searchQuery || searchQuery.length === 0) return transactions;
-    return transactions.filter((tx) =>
-      tx.account_name.toLowerCase().includes(searchQuery) ||
-      tx.date.toLowerCase().includes(searchQuery) ||
-      tx.merchant_name.toLowerCase().includes(searchQuery) ||
-      tx.category.toLowerCase().includes(searchQuery) ||
-      tx.amount.toString().toLowerCase().includes(searchQuery)
-    );
-  }, [transactions, searchQuery]);
-
-  // Memoize row selection handler
-  const handleRowSelectionChange = useCallback((newSelection) => {
-    let ids = [];
-    // newSelection.ids is type Set
-    if (newSelection?.type === 'include') {
-      // inclde type = selected transaciton stored in ids Set
-      setSelectedRowCount(newSelection.ids.size);
-      setSelectedRowIds(Array.from(newSelection.ids)); // Convert Set to Array
-      return;
-    }
-    if (newSelection?.type === 'exclude') {
-      const excluded = newSelection.ids || new Set();
-      // exclude type = transactions that are not selected
-      // are now store in ids.
-      // Keep the selected transactions by filtering the non selected txs
-      ids = transactions.filter(row => !excluded.has(String(row.id))).map(row => row.id);
-      console.log(ids);
-    }
-    setSelectedRowIds(ids);
-    setSelectedRowCount(ids.length);
-  }, [transactions]) // same function
-
-  const handlePaginationModelChange = useCallback((newModel) => {
-    setPaginationModel(newModel);
-  }, []);
 
   if (loadingItemId) return <div>Loading...</div>
 
@@ -243,7 +239,7 @@ export default function Transaction() {
             <section>
               <div className="w-full">
                 <DataGrid
-                  rows={filteredTransactions}
+                  rows={transactions}
                   columns={columns}
                   disableColumnResize={true}
                   checkboxSelection
@@ -255,25 +251,32 @@ export default function Transaction() {
                   pageSizeOptions={[5, 10, 25]}
                   onPaginationModelChange={handlePaginationModelChange}
                   onRowSelectionModelChange={handleRowSelectionChange}
+                  rowSelectionModel={rowSelectionModel}
                   hideFooterPagination={loadingTransactions}
               />
               </div>
               {isEditModalOpen && 
-                <AddAndEditTransactionModal
-                  open={isEditModalOpen}
-                  onClose={handleCloseEditModal}
-                  transaction={selectedTx}
-                  itemId={itemId}
-                  mode="Edit"
-                />
+              <AddAndEditTransactionModal
+                open={isEditModalOpen}
+                onClose={handleCloseEditModal}
+                setPaginationModel={setPaginationModel}
+                setLastDocumentIds={setLastDocumentIds}
+                transaction={selectedTx}
+                itemId={itemId}
+                paginationModel={paginationModel}
+                lastDocumentIds={lastDocumentIds}
+                mode="Edit"
+              />
               }
               {isAddModalOpen && 
-                <AddAndEditTransactionModal
-                  open={isAddModalOpen}
-                  onClose={handleCloseAddModal}
-                  itemId={itemId}
-                  mode="Add"
-                />
+              <AddAndEditTransactionModal
+                open={isAddModalOpen}
+                onClose={handleCloseAddModal}
+                setPaginationModel={setPaginationModel}
+                setLastDocumentIds={setLastDocumentIds}
+                itemId={itemId}
+                mode="Add"
+              />
               }
             </section>
           </div>

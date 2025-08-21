@@ -37,15 +37,15 @@ export async function addTransaction(transactionData, itemId, onClose) {
     )
 }
 
-export async function editTransactionById(transactionId, transactionData, itemId, onClose) {
-    if (!transactionId) throw new Error("Frontend: Missing transactionId");
+export async function editTransactionById(transactionToUpdateId, transactionData, itemId, onClose) {
+    if (!transactionToUpdateId) throw new Error("Frontend: Missing transactionId");
     if (!transactionData) throw new Error("Frontend: Missing transaction to update");
     if (!itemId) throw new Error("Frontend: Missing itemId");
     if (!transactionData) throw new Error("Frontend: Missing transaction to saved");
 
     const editTransactionById = httpsCallable(functions, "editTransactionById");
     await showToastDuringAsync(
-        editTransactionById({ transactionId, transaction: transactionData, itemId }),
+        editTransactionById({ transactionToUpdateId, transactionData, itemId }),
         {
             loadingMessage: "Saving Transaction...",
             successMessage: "Transaction updated successfully",
