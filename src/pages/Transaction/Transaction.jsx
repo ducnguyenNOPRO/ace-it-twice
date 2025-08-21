@@ -37,6 +37,9 @@ const CategoryCell = React.memo(({ value }) => (
 
 export default function Transaction() {
   const { currentUser } = useAuth();
+  const { itemId, loadingItemId } = useItemId(currentUser.uid);
+  const queryClient = useQueryClient();
+  const [lastDocumentIds, setLastDocumentIds] = useState({})
   const [paginationModel, setPaginationModel] = useState({  // Manually handle page model
     page: 0,
     pageSize: 5
@@ -45,9 +48,6 @@ export default function Transaction() {
     type: "include",
     ids: new Set(),
   });
-  const [lastDocumentIds, setLastDocumentIds] = useState({})
-  const queryClient = useQueryClient();
-  const { itemId, loadingItemId } = useItemId(currentUser.uid);
   const { data, isLoading: loadingTransactions} = useQuery(
     createTransactionsQueryOptions(
       {
@@ -63,12 +63,12 @@ export default function Transaction() {
         enabled: !!itemId
       }))
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState(null);
   const [selectedRowCount, setSelectedRowCount] = useState(0);
   const [selectedRowIds, setSelectedRowIds] = useState([]);  // For Batch transaction deletion
-
   const transactions = data?.transactions ?? [];
   const pagination = data?.pagination ?? {};
 
@@ -101,40 +101,57 @@ export default function Transaction() {
     setSelectedTx(null);
   }, []);
 
+  // Remove all cache instead of reinvalidating
+  // There're more query key so reinvaliding would just keep old cache
+  // and add new cache when refetch instead replace old cache
+  const refetchTransactions = useCallback(async () => {
+      queryClient.removeQueries({
+          queryKey: ["transactions", itemId]
+      })
+      // Clear lastDocumentIds state
+      setLastDocumentIds({});
+
+      // Refetch page 0
+      setPaginationModel((prev) => ({
+          ...prev,
+          page: 0
+      }))
+  }, [itemId])
+
   // Delete a single a transaction
   const handleDeleteSingleTransaction = useCallback(async (row) => {
-    const transactionId = row.id || row.transaction_id;
-    await deleteSingleTransaction(transactionId, itemId);
-    queryClient.invalidateQueries({
-      queryKey: createTransactionsQueryOptions().queryKey
-    });
-  }, [itemId]);
+    setIsDeleting(true);
+    const transactionToDeleteId = row.id || row.transaction_id;
+    await deleteSingleTransaction(transactionToDeleteId, itemId);
+    setIsDeleting(false);
+    refetchTransactions();
+  }, [itemId, refetchTransactions]);
 
   // Delete many transaction at once
   const handleDeleteBatchTransactions = useCallback(async () => {
+    setIsDeleting(true);
     const result = await deleteBatchTransaction(selectedRowIds, itemId);
 
-    if (result.data.success) { 
-      queryClient.invalidateQueries({
-        queryKey: createTransactionsQueryOptions().queryKey
-      });
+    if (result?.success) { 
+      refetchTransactions();
       setSelectedRowCount(0);
       setSelectedRowIds([]);
     }
-  }, [selectedRowIds, itemId])
+    setIsDeleting(false);
+  }, [selectedRowIds, itemId, refetchTransactions])
 
   const handleRowSelectionChange = useCallback((newRowSelectionModel) => {
     setRowSelectionModel(newRowSelectionModel)
     let ids = [];
     if (newRowSelectionModel?.type === 'include') {
-      // "include" type = selected transactions stored in ids Set
+      // "include" type --> selected transactions stored in ids Set
       setSelectedRowCount(newRowSelectionModel.ids.size);
       setSelectedRowIds(Array.from(newRowSelectionModel.ids)); // Convert Set to Array
       return;
     }
     if (newRowSelectionModel?.type === 'exclude') {
       const excluded = newRowSelectionModel.ids || new Set();
-      // "exclude" type = transactions that are not selected are store in ids.
+      // "exclude" type --> transactions that are not selected are store in ids.
       // Keep the selected transactions by filtering the non selected txs
       ids = transactions.filter(row => !excluded.has(String(row.id))).map(row => row.id);
       setSelectedRowIds(ids);
@@ -174,7 +191,7 @@ export default function Transaction() {
       headerName: 'Amount',
       flex: 0.7,
       renderCell: (params) => (
-        <span className={params.value > 0 ? 'text-red-500' : 'text-green-600'}>
+        <span className={params.value > 0 ? 'text-green-600' : 'text-red-500'}>
           ${Math.abs(params.value).toFixed(2)}
         </span>
       ),
@@ -191,6 +208,7 @@ export default function Transaction() {
           row={params.row}
           handleOpenEditModal={handleOpenEditModal}
           handleDeleteTransaction={handleDeleteSingleTransaction}
+          isDeleting={isDeleting}
         />
       )
     }
@@ -210,14 +228,14 @@ export default function Transaction() {
             <Topbar pageName='Transaction' userFirstInitial={currentUser.displayName?.charAt(0)} />             
             
             <span className="w-full h-px bg-gray-200 block my-5"></span>
-            <div className="flex items-center justify-between mb-2 mx-2 gap-1">
+            <div className="flex items-center justify-between mb-2 mx-2 gap-3">
               {/* Search transaction */}
               <SearchTransaction onSearch={setSearchQuery} />
       
               <div className="flex items-center gap-3">
                 {/* Add transaction */}    
                 <button
-                  className="flex items-center gap-1 py-1 px-3 bg-black text-white rounded-md font-medium hover:opacity-80 transition cursor-pointer"
+                  className="flex items-center gap-1 py-1 px-3 bg-green-500 text-white rounded-md font-medium hover:opacity-80 transition cursor-pointer"
                   onClick={handleOpenAddModal}
                 >
                   <IoAddCircleSharp/>
@@ -227,10 +245,15 @@ export default function Transaction() {
                 <button
                   className="flex items-center gap-1 py-1 px-3 bg-red-600 text-white rounded-md font-medium hover:opacity-80 transition cursor-pointer"
                   onClick={handleDeleteBatchTransactions}
+                  disabled={isDeleting}
                 >
                   <IoAddCircleSharp />
                   <span>
-                    {selectedRowCount > 0 ? `Delete Selected (${selectedRowCount})` : 'Delete'}
+                    {
+                      isDeleting ? "Deleting..." 
+                        : selectedRowCount > 0 ? `Delete Selected (${selectedRowCount})` : 'Delete'
+                    }
+
                   </span>
                 </button>
               </div>
@@ -281,6 +304,7 @@ export default function Transaction() {
             </section>
           </div>
         </div>
+
       </>
     )
 }

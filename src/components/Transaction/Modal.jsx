@@ -168,6 +168,7 @@ export default function AddAndEditTransactionModal({ open, onClose, setPaginatio
         if (mode === "Add") {
             const transactionToAdd = {
                 ...formValues,
+                name: formValues.merchant_name,
                 amount: Number(formValues.amount),
                 pending: formValues.pending === "true" || formValues.pending === true,
                 account_mask: account.mask,
@@ -208,6 +209,16 @@ export default function AddAndEditTransactionModal({ open, onClose, setPaginatio
                 </Dialog>
             );
         }
+    }
+
+    if (loadingAccs) {
+            return (
+                <Dialog open={open} onClose={onClose}>
+                    <DialogContent>
+                        <div>Loading...</div>
+                    </DialogContent>
+                </Dialog>
+            );
     }
 
     return (

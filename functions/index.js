@@ -238,7 +238,7 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
         transaction_id: tx.transaction_id,
         name: tx.name,
         merchant_name: tx.merchant_name || tx.name,
-        amount: tx.amount,
+        amount: tx.amount * -1,
         iso_currency_code: tx.iso_currency_code,
         date: tx.date,
         //datetime: tx.datetime,
@@ -589,10 +589,10 @@ exports.deleteTransactionById= onCall(async (request) => {
     throw new HttpsError("Unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
-  const txId = request.data.transactionId;  // Transaction Id
+  const transactionToDeleteId = request.data.transactionToDeleteId;  // Transaction Id
   const itemId = request.data.itemId
 
-  if (!txId) {
+  if (!transactionToDeleteId) {
     throw new HttpsError("invalid-argument", "Missing transaction Id");
   }
   if (!itemId) {
@@ -607,15 +607,7 @@ exports.deleteTransactionById= onCall(async (request) => {
       .collection('plaid')
       .doc(itemId)
       .collection("transactions")
-      .doc(txId);
-
-    // Get transaction doc with Id
-    const txDoc = await txDocRef.get();
-
-    // Prevent deleting non-existing document
-    if (!txDoc.exists) {
-      throw new HttpsError("not-found", "Transaction document not found.");
-    }
+      .doc(transactionToDeleteId);
 
     // Save the transaction
     await txDocRef.delete();
@@ -631,11 +623,11 @@ exports.deleteBatchTransaction = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const txsToDelete = request.data.selectedTransactionIds;  // Array
+  const transactionsToDelete = request.data.selectedTransactionIds;  // Array
   const itemId = request.data.itemId
 
-  if (!txsToDelete) {
-    throw new HttpsError("invalid-argument", "Missing transactions");
+  if (!transactionsToDelete) {
+    throw new HttpsError("invalid-argument", "Missing transactions to delete");
   }
   if (!itemId) {
     throw new HttpsError("invalid-argument", "Missing itemId");
@@ -643,7 +635,7 @@ exports.deleteBatchTransaction = onCall(async (request) => {
 
   const batch = admin.firestore().batch(); // used to write multiple documents
   try {
-    // Get the Bank document using itemId
+    
     const txCollectionRef = admin.firestore()
       .collection('users')
       .doc(uid)
@@ -651,15 +643,16 @@ exports.deleteBatchTransaction = onCall(async (request) => {
       .doc(itemId)
       .collection("transactions")
     
-    txsToDelete.forEach(txId => {
+    transactionsToDelete.forEach(txId => {
       const txDocRef = txCollectionRef.doc(txId);
       batch.delete(txDocRef);
     })
 
     await batch.commit();
 
-    return { success: true, message: `Successfully deleted ${txsToDelete.length} transactions` }
+    return { success: true, message: `Successfully deleted ${transactionsToDelete.length} transactions` }
   } catch (error) {
+    console.error(error);
     throw new HttpsError("internal", "Fail to delete batch transactions")
   }
 })

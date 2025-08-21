@@ -57,13 +57,13 @@ export async function editTransactionById(transactionToUpdateId, transactionData
     )
 }
 
-export async function deleteSingleTransaction(transactionId, itemId) {
+export async function deleteSingleTransaction(transactionToDeleteId, itemId) {
     if (!itemId) throw new Error("Frontend: Missing itemId");
-    if (!transactionId) throw new Error("Frontend: Missing transactionId");
+    if (!transactionToDeleteId) throw new Error("Frontend: Missing transactionId");
 
     const deleteTransactionById = httpsCallable(functions, "deleteTransactionById");
     await showToastDuringAsync(
-        deleteTransactionById({transactionId, itemId}),
+        deleteTransactionById({transactionToDeleteId, itemId}),
         {
         loadingMessage: "Deleting transaction...",
         successMessage: "Transaction deleted successfully",
@@ -80,7 +80,7 @@ export async function deleteBatchTransaction(selectedTransactionIds, itemId) {
     }
 
     const deleteBatchTransaction = httpsCallable(functions, "deleteBatchTransaction");
-    const result = await showToastDuringAsync(
+    const {data} = await showToastDuringAsync(
         deleteBatchTransaction({selectedTransactionIds, itemId}),
         {
         loadingMessage: `Deleting ${selectedTransactionIds.length} transactions...`,
@@ -88,5 +88,5 @@ export async function deleteBatchTransaction(selectedTransactionIds, itemId) {
         errorMessage: `Failed to delete ${selectedTransactionIds.length} transactions. Try again later`,
         }
     )
-    return result;
+    return data;
 }

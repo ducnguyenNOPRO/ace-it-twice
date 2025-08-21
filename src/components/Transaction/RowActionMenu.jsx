@@ -6,7 +6,7 @@ import React, { useState } from "react";
 import { MdDeleteForever, MdEdit } from "react-icons/md";
 
 export default function RowActionMenu({
-    row, handleOpenEditModal, handleDeleteTransaction
+    row, handleOpenEditModal, handleDeleteTransaction, isDeleting
 }) {
     const [anchorEl, setAnchorEl] = useState(null); // reference to HTML elemnt --- IconButton
     const open = Boolean(anchorEl);
@@ -62,6 +62,7 @@ export default function RowActionMenu({
                 </MenuItem>
                 <MenuItem
                     onClick={handleDelete}
+                    disabled={isDeleting}
                     sx={{
                         '&:hover': {
                             backgroundColor: "black",
