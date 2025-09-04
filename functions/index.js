@@ -3,7 +3,7 @@ const admin = require("firebase-admin");
 const {FieldValue} = require("firebase-admin/firestore")
 const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
 const prettyMapCategory = require('./constants/prettyMapCategory');
-const { error } = require("firebase-functions/logger");
+const { validateFilters } = require('./utils/validateFilters')
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -187,6 +187,8 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
 
   const uid = request.auth.uid;
   const itemId = request.data.itemId
+  console.log(itemId);
+  console.log(uid);
 
   if (!itemId) throw new HttpsError("invalid-argument", "Missing itemId");
 
@@ -212,7 +214,6 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
 
     // Format as YYYY-MM-DD if needed (depends on your DB)
     const startDate = aYearAgo.toISOString().split("T")[0]; // e.g., "2025-01-30"
-    console.log(startDate)
     const endDate = now.toISOString().split("T")[0]; // e.g., "2025-07-30"
 
     // Call Plaid to get Accounts
@@ -236,23 +237,25 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
       const accountInfo = accountsMap[tx.account_id];
       return {
         transaction_id: tx.transaction_id,
-        name: tx.name,
         merchant_name: tx.merchant_name || tx.name,
+        merchant_name_lower: tx.merchant_name?.toLowerCase() || tx.name?.toLowerCase(),
         amount: tx.amount * -1,
         iso_currency_code: tx.iso_currency_code,
         date: tx.date,
         //datetime: tx.datetime,
         //authorized_date: tx.authorized_date,
         //authorized_datetime: tx.authorized_datetime,
-        location: tx.location,
-        logo_url: tx.logo_url,
+        // location: tx.location,
+        // logo_url: tx.logo_url,
         pending: tx.pending,
-        category: prettyMapCategory[tx.personal_finance_category.primary],
+        category: prettyMapCategory[tx.personal_finance_category.primary] || "Other",
+        category_lower: prettyMapCategory[tx.personal_finance_category.primary]?.toLowerCase() || "Other",
         account_id: tx.account_id,
         notes: '',
 
         // merged account info:
         account_name: accountInfo.name || "Unknown",
+        account_name_lower: accountInfo.name?.toLowerCase() || "Unknown",
         account_mask: accountInfo.mask || "****",
       }
     })
@@ -276,17 +279,19 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
     };
   }
   catch (error) {
+    console.error(error);
     throw new HttpsError("internal", "Fail to fetch transactions.");
   }
 })
 
 // Cursor based Pagination
-exports.getTransactions = onCall(async (request) => {
+exports.getTransactionsFilteredPaginated = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("Unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
-  const { itemId, page = 0, pageSize = 5, lastDocumentId = null } = request.data;
+  const { itemId, pagination, filters } = request.data;
+  const { page = 0, pageSize = 5, lastDocumentId = null } = pagination;
 
   if (!itemId) {
     throw new HttpsError("invalid-argument", "Missing Item Id");
@@ -296,6 +301,16 @@ exports.getTransactions = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Out of bound page size");
   }
 
+  const {
+    name,
+    account,
+    fromDate,
+    toDate,
+    category,
+    minAmount,
+    maxAmount
+  } = validateFilters(filters);
+
   try {
     const transactionsRef = admin.firestore()
       .collection('users')
@@ -304,13 +319,36 @@ exports.getTransactions = onCall(async (request) => {
       .doc(itemId)
       .collection('transactions');
     
-    // Use count() aggregation (Admin SDK doesn’t have getCountFromServer)
-    const totalCountSnapshot = await transactionsRef.count().get();
-    const totalDocs = totalCountSnapshot.data().count;
-    
     let query = transactionsRef.orderBy("date", "desc")
+    if (name) {  // merchant name 
+      query = query
+        .where("merchant_name_lower", ">=", name) // use third party app for case sensitive search
+        .where("merchant_name_lower", "<=", name + "\uf8ff");
+    }
+    if (account) {
+      query = query.where("account_name_lower", "==", account)
+    }
+    if (fromDate) {
+      query = query.where("date", ">=", fromDate)
+    }
+    if (toDate) {
+      query = query.where("date", "<=", toDate)
+    }
+    if (category) {
+      query = query.where("category", "==", category)
+    }
+    if (minAmount) {
+      query = query.where("amount", ">=", minAmount)
+    }
+    if (maxAmount) {
+      query = query.where("amount", "<=", maxAmount)
+    }
 
-    // Start after the lastDocumentId
+    // Use count() aggregation (Admin SDK doesn’t have getCountFromServer)
+    const totalCountSnapshot = await query.count().get();
+    const totalDocs = totalCountSnapshot.data().count;
+
+    // Apply pagination
     if (lastDocumentId) {
       const lastDocRef = transactionsRef.doc(lastDocumentId);
       const lastDocSnapshot = await lastDocRef.get();
@@ -324,7 +362,7 @@ exports.getTransactions = onCall(async (request) => {
 
     const snapshot = await query.limit(pageSize).get();
 
-    const hasNextPage = snapshot.docs.length === pageSize;
+    const hasNextPage = ((page * pageSize) + snapshot.docs.length) < totalDocs;
     const transactions = snapshot.docs.map(doc => ({
       id: doc.id,
         ...doc.data()
@@ -342,7 +380,8 @@ exports.getTransactions = onCall(async (request) => {
         pageSize,
         hasNextPage,
         nextCursor: hasNextPage ? nextCursorId : null,
-        count: transactions.length
+        count: transactions.length,
+        totalPages: Math.ceil(totalDocs / pageSize)
       }
     };
   } catch (error) {

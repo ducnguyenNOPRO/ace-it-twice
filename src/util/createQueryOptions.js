@@ -1,18 +1,21 @@
 import { queryOptions } from "@tanstack/react-query"
-import { getTransactions } from "../api/transactions"
+import { getTransactionsFilteredPaginated } from "../api/transactions"
 import { getAccounts } from "../api/accounts"
+
 export function createTransactionsQueryOptions(
     params = {}, options = {}
 ) {
+    const { itemId, pagination, filters} = params;
+    
     return queryOptions({
         ...options, 
-        queryKey: ["transactions",
-            params.itemId,
-            params.page,
-            params.pageSize,
-            params.lastDocumentId ?? null
+        queryKey: [
+            "transactions",
+            itemId,
+            pagination ,
+            filters
         ],
-        queryFn: () => getTransactions(params),
+        queryFn: () => getTransactionsFilteredPaginated({itemId, pagination, filters}),
     })
 }
 

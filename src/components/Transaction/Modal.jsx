@@ -113,7 +113,7 @@ export default function AddAndEditTransactionModal({ open, onClose, setPaginatio
     // and add new cache when refetch instead replace old cache
     const refetchTransactions = useCallback(async () => {
         queryClient.removeQueries({
-            queryKey: ["transactions", itemId]
+            queryKey: ["transactions", { itemId }]
         })
         // Clear lastDocumentIds state
         setLastDocumentIds({});
@@ -168,7 +168,6 @@ export default function AddAndEditTransactionModal({ open, onClose, setPaginatio
         if (mode === "Add") {
             const transactionToAdd = {
                 ...formValues,
-                name: formValues.merchant_name,
                 amount: Number(formValues.amount),
                 pending: formValues.pending === "true" || formValues.pending === true,
                 account_mask: account.mask,
@@ -182,7 +181,6 @@ export default function AddAndEditTransactionModal({ open, onClose, setPaginatio
             const transactionToUpdateId = transaction.transaction_id || transaction.id;
             const transactionToUpdate = {
                 ...formValues,
-                name: formValues.merchant_name,
                 amount: Number(formValues.amount),
                 account_mask: account.mask,
                 account_id: account.account_id,

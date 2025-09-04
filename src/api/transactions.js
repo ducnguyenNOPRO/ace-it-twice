@@ -10,13 +10,17 @@ export async function fetchTransactionsFromPlaid(itemId) {
     await fetchTransactions({ itemId });
 }
 
-export async function getTransactions({ itemId, page = 0, pageSize = 5, lastDocumentId = null }) {
-    if (!itemId) throw new Error("Frontend: Missing itemId");
+export async function getTransactionsFilteredPaginated(params = {}) {
+    if (!params.itemId) throw new Error("Frontend: Missing itemId");
 
-    const getTransactions = httpsCallable(functions, "getTransactions");
-    const { data } = await getTransactions({ itemId, page, pageSize, lastDocumentId });
-
-    return data;
+    const getTransactionsFilteredPaginated = httpsCallable(functions, "getTransactionsFilteredPaginated");
+    try {
+        const { data } = await getTransactionsFilteredPaginated(params);
+        return data;
+    } catch (error) {
+        console.error('❌ Firebase function error:', error);
+        throw error;
+    }
 }
 
 export async function addTransaction(transactionData, itemId, onClose) {

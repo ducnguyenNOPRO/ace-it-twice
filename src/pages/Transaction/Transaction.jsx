@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback, useId, useEffect } from 'react'
+import React, { useState, useRef, useMemo, useCallback, useId, useEffect, useLayoutEffect } from 'react'
 import { useAuth } from '../../contexts/authContext'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar'
@@ -9,11 +9,11 @@ import RowActionMenu from '../../components/Transaction/RowActionMenu'
 import { IoAddCircleSharp} from 'react-icons/io5'
 import { useItemId } from '../../hooks/useItemId'
 import prettyMapCategory from '../../constants/prettyMapCategory'
-import { FiRefreshCw } from "react-icons/fi"
 import SearchTransaction from '../../components/Transaction/SearchBar'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createTransactionsQueryOptions } from '../../util/createQueryOptions'
 import { deleteBatchTransaction, deleteSingleTransaction, fetchTransactionsFromPlaid } from '../../api/transactions'
+import useTransactionFilters from '../../hooks/useTransactionFilters'
 
 // Memoized category cell component to prevent re-renders
 const CategoryCell = React.memo(({ value }) => (
@@ -34,6 +34,10 @@ const CategoryCell = React.memo(({ value }) => (
   </div>
 ));
 
+const isFilterNotChanged = (prevFilter, currentFilter) => {
+  return prevFilter === currentFilter;
+}
+
 
 export default function Transaction() {
   const { currentUser } = useAuth();
@@ -48,21 +52,42 @@ export default function Transaction() {
     type: "include",
     ids: new Set(),
   });
-  const { data, isLoading: loadingTransactions} = useQuery(
+  const {
+    name, account, fromDate, toDate, category, minAmount, maxAmount
+  } = useTransactionFilters();
+
+  const filters = useMemo(() => ({
+    name, account, fromDate, toDate, category, minAmount, maxAmount
+  }), [name, account, fromDate, toDate, category, minAmount, maxAmount]);
+
+  const prevFilters = useRef();
+
+  useEffect(() => {
+    // whenever filters change, go back to page 0 and reset cursor
+    setPaginationModel({ page: 0, pageSize: paginationModel.pageSize });
+    setLastDocumentIds({});
+    prevFilters.current = filters;
+  }, [filters]);
+
+  const { data, isFetching: loadingTransactions} = useQuery(
     createTransactionsQueryOptions(
       {
         itemId,
-        page: paginationModel.page,
-        pageSize: paginationModel.pageSize,
-        lastDocumentId: paginationModel.page > 0 ? lastDocumentIds[paginationModel.page - 1] : null,
+        pagination: {
+          page: paginationModel.page,
+          pageSize: paginationModel.pageSize,
+          lastDocumentId: (paginationModel.page > 0 && isFilterNotChanged(prevFilters.current, filters)) ? lastDocumentIds[paginationModel.page - 1] : null
+        },
+        filters
       },
       {
-        staleTime: Infinity,
-        refetchOnWindowFocus: false,
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: true,
         refetchOnReconnect: false,
         enabled: !!itemId
       }))
-  const [searchQuery, setSearchQuery] = useState('');
+  
+  console.log(queryClient.getQueryCache().getAll())
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -106,7 +131,7 @@ export default function Transaction() {
   // and add new cache when refetch instead replace old cache
   const refetchTransactions = useCallback(async () => {
       queryClient.removeQueries({
-          queryKey: ["transactions", itemId]
+        queryKey: ["transactions", { itemId }]
       })
       // Clear lastDocumentIds state
       setLastDocumentIds({});
@@ -230,7 +255,7 @@ export default function Transaction() {
             <span className="w-full h-px bg-gray-200 block my-5"></span>
             <div className="flex items-center justify-between mb-2 mx-2 gap-3">
               {/* Search transaction */}
-              <SearchTransaction onSearch={setSearchQuery} />
+              <SearchTransaction />
       
               <div className="flex items-center gap-3">
                 {/* Add transaction */}    
