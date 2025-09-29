@@ -10,6 +10,7 @@ import { IoAddCircleSharp} from 'react-icons/io5'
 import { useItemId } from '../../hooks/useItemId'
 import prettyMapCategory from '../../constants/prettyMapCategory'
 import SearchTransaction from '../../components/Transaction/SearchBar'
+import FilterTransaction from '../../components/Transaction/Filter'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createTransactionsQueryOptions } from '../../util/createQueryOptions'
 import { deleteBatchTransaction, deleteSingleTransaction, fetchTransactionsFromPlaid } from '../../api/transactions'
@@ -253,10 +254,10 @@ export default function Transaction() {
             <Topbar pageName='Transaction' userFirstInitial={currentUser.displayName?.charAt(0)} />             
             
             <span className="w-full h-px bg-gray-200 block my-5"></span>
-            <div className="flex items-center justify-between mb-2 mx-2 gap-3">
+            <div className="flex items-center mb-2 mx-2 gap-3">
               {/* Search transaction */}
               <SearchTransaction />
-      
+              <FilterTransaction itemId={itemId} />
               <div className="flex items-center gap-3">
                 {/* Add transaction */}    
                 <button

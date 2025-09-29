@@ -19,10 +19,11 @@ export default function Dashboard() {
   const { data: transactions, isLoading: loadingTxs } = useQuery(
     createTransactionsQueryOptions({ itemId },
       {
-        staleTime: Infinity,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: false
-      }));
+        itemId,
+        pagination: {
+          pageSize: 3,
+        },
+      }))
   const { data: accounts, isLoading: loadingAccs } = useQuery(
     createAccountsQueryOptions({ itemId },
       {

@@ -1,5 +1,5 @@
 import React from 'react'
-import './Sidebar.css'
+import styles from './Sidebar.module.css'
 import { signUserOut } from '../../firebase/authHelpers';
 import { MdOutlineSpaceDashboard } from "react-icons/md"
 import { AiOutlineTransaction } from "react-icons/ai";
@@ -29,7 +29,7 @@ export default function Sidebar() {
                     </div>
                     
                     {/* Navigation links */}
-                    <ul className="flex flex-col mt-10 p-0">
+                    <ul className={styles.sidebarList}>
                         <Link to="/Dashboard">
                             <li>
                             <MdOutlineSpaceDashboard />
@@ -59,7 +59,8 @@ export default function Sidebar() {
                     </ul>
                       
                     {/* Bottom section */}
-                    <ul className="mt-auto mb-10">
+                    <div className="mt-auto mb-10">
+                        <ul className={styles.sidebarList}>
                         <Link to="/Setting">
                             <li>
                                 <CgProfile  />
@@ -75,6 +76,7 @@ export default function Sidebar() {
                             Log out
                         </li>
                     </ul>      
+                    </div>
                 </div>
             </div>
         </>
