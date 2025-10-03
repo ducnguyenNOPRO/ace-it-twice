@@ -4,6 +4,7 @@ const {FieldValue} = require("firebase-admin/firestore")
 const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
 const prettyMapCategory = require('./constants/prettyMapCategory');
 const { validateFilters } = require('./utils/validateFilters')
+const { format } = require("date-fns");
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -210,7 +211,7 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
 
     const now = new Date();   // YYYY-MM-DD T HH:MM::SS
     const aYearAgo = new Date();
-    aYearAgo.setMonth(now.getMonth() - 12);
+    aYearAgo.setFullYear(now.getFullYear() - 1);
 
     // Format as YYYY-MM-DD if needed (depends on your DB)
     const startDate = aYearAgo.toISOString().split("T")[0]; // e.g., "2025-01-30"
@@ -387,6 +388,95 @@ exports.getTransactionsFilteredPaginated = onCall(async (request) => {
   } catch (error) {
     console.log(error);
     throw new HttpsError("internal", "Fail to get transactions.");
+  }
+})
+
+// Get recent transaction for Dashboard Page
+exports.getRecentTransactions = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+  const { itemId, limit} = request.data;
+
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
+  }
+
+  try {
+    const transactionsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection('transactions');
+    
+    const query = transactionsRef.orderBy("date", "desc").limit(limit);
+    const snapshot = await query.get();
+
+    const transactions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+
+    return {
+      success: true,
+      message: "Recent transactions fetched succesfully",
+      totalTransactions: transactions.length,
+      transactions: transactions,
+    }
+  } catch (error) {
+    console.log(error);
+    throw new HttpsError("internal", "Fail to get recent transactions.");
+  }
+})
+
+// Get monthly transaction for Dashboard Page
+exports.getMonthlyTransactions = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+  const {itemId} = request.data;
+
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
+  }
+
+  try {
+    const transactionsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection('transactions');
+    
+    // Current month
+    const now = new Date();
+    const startDate = format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
+    const endDate = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
+    
+    const query = transactionsRef
+      .where("date", ">=", startDate)
+      .where("date", "<=", endDate)
+      .orderBy("date", "desc");
+    const snapshot = await query.get();
+
+    const transactions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+    console.log(transactions);
+
+    return {
+      success: true,
+      message: "Monthly transactions fetched succesfully",
+      totalTransactions: transactions.length,
+      transactions: transactions,
+    }
+  } catch (error) {
+    console.log(error);
+    throw new HttpsError("internal", "Fail to get monthly transactions.");
   }
 })
 

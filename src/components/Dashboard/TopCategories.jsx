@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function TopCategories({data}) {
+export default function TopCategories({ data }) {
     return (
     <>
         <h1 className="font-semibold text-xl text-black tracking-wider mb-6">Top categories</h1>

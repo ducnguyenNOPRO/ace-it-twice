@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query"
-import { getTransactionsFilteredPaginated } from "../api/transactions"
+import { getTransactionsFilteredPaginated, getRecentTransactions } from "../api/transactions"
 import { getAccounts } from "../api/accounts"
 
 export function createTransactionsQueryOptions(
@@ -16,6 +16,37 @@ export function createTransactionsQueryOptions(
             filters
         ],
         queryFn: () => getTransactionsFilteredPaginated({itemId, pagination, filters}),
+    })
+}
+
+export function createRecentTransactionsQueryOptions(
+    params = {}, options = {}
+) {
+    const { itemId } = params;
+    const limit = 3;
+    
+    return queryOptions({
+        ...options, 
+        queryKey: [
+            "recentTransactions",
+            itemId,
+        ],
+        queryFn: () => getRecentTransactions({itemId, limit}),
+    })
+}
+
+export function createMonthlyTransactionsQueryOptions(
+    params = {}, options = {}
+) {
+    const { itemId } = params;
+    
+    return queryOptions({
+        ...options, 
+        queryKey: [
+            "monthlyTransactions",
+            itemId,
+        ],
+        queryFn: () => getMonthlyTransactions({itemId}),
     })
 }
 

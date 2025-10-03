@@ -18,7 +18,32 @@ export async function getTransactionsFilteredPaginated(params = {}) {
         const { data } = await getTransactionsFilteredPaginated(params);
         return data;
     } catch (error) {
-        console.error('❌ Firebase function error:', error);
+        console.error('Firebase function error:', error);
+        throw error;
+    }
+}
+
+export async function getRecentTransactions(params = {}) {
+    if (!params.itemId) throw new Error("Frontend: Missing itemId");
+
+    const getRecentTransacitons = httpsCallable(functions, "getRecentTransactions");
+    try {
+        const { data } = await getRecentTransacitons(params);
+        return data;
+    } catch (error) {
+        console.error('Firebase function error:', error);
+        throw error;
+    }
+}
+export async function getMonthlyTransactions(params = {}) {
+    if (!params.itemId) throw new Error("Frontend: Missing itemId");
+
+    const getMonthlyTransacitons = httpsCallable(functions, "getMonthlyTransacitons");
+    try {
+        const { data } = await getMonthlyTransacitons(params);
+        return data;
+    } catch (error) {
+        console.error('Firebase function error:', error);
         throw error;
     }
 }
