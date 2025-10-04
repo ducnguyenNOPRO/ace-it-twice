@@ -18,12 +18,16 @@ function useDebounce(value, delay = 500) {
   return debouncedValue;
 }
 
-export default function SearchTransaction() {
-  const { search, setFilters } = useTransactionFilters();
-  const [localSearch, setLocalSearch] = useState(search);
+export default function SearchTransaction({setPaginationModel, page, pageSize, setLastDocumentIds}) {
+  const { name, setFilters } = useTransactionFilters();
+  const [localSearch, setLocalSearch] = useState(name);
   const debouncedSearch = useDebounce(localSearch);
   
   useEffect(() => {
+    if (page > 0) {
+      setPaginationModel({ page: 0, pageSize });
+      setLastDocumentIds();
+    }
     setFilters({ name: debouncedSearch });
   }, [debouncedSearch])
   
@@ -33,7 +37,7 @@ export default function SearchTransaction() {
     <input
       id="searchTransaction"
       value={localSearch || ''}
-      placeholder="Search or filter"
+      placeholder="Search merchant name"
       className="w-full pl-8 py-1 tracking-wider text-md text-black bg-white border-2 border-gray-300 rounded-md "
       onChange={(e) => setLocalSearch(e.target.value)}
         />

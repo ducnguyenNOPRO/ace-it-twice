@@ -327,7 +327,7 @@ exports.getTransactionsFilteredPaginated = onCall(async (request) => {
         .where("merchant_name_lower", "<=", name + "\uf8ff");
     }
     if (account) {
-      query = query.where("account_name_lower", "==", account)
+      query = query.where("account_name", "==", account)
     }
     if (fromDate) {
       query = query.where("date", ">=", fromDate)
@@ -455,6 +455,8 @@ exports.getMonthlyTransactions = onCall(async (request) => {
     const now = new Date();
     const startDate = format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
     const endDate = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
+
+    console.log(startDate, endDate)
     
     const query = transactionsRef
       .where("date", ">=", startDate)
@@ -466,7 +468,6 @@ exports.getMonthlyTransactions = onCall(async (request) => {
       id: doc.id,
       ...doc.data()
     }))
-    console.log(transactions);
 
     return {
       success: true,

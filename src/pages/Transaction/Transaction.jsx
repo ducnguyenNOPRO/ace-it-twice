@@ -35,10 +35,6 @@ const CategoryCell = React.memo(({ value }) => (
   </div>
 ));
 
-const isFilterNotChanged = (prevFilter, currentFilter) => {
-  return prevFilter === currentFilter;
-}
-
 
 export default function Transaction() {
   const { currentUser } = useAuth();
@@ -53,22 +49,10 @@ export default function Transaction() {
     type: "include",
     ids: new Set(),
   });
+  const [addFilterToUI, setAddFilterToUI] = useState([]); // [ {type: account/category/..., value: ""} ]
   const {
     name, account, fromDate, toDate, category, minAmount, maxAmount
   } = useTransactionFilters();
-
-  const filters = useMemo(() => ({
-    name, account, fromDate, toDate, category, minAmount, maxAmount
-  }), [name, account, fromDate, toDate, category, minAmount, maxAmount]);
-
-  const prevFilters = useRef();
-
-  useEffect(() => {
-    // whenever filters change, go back to page 0 and reset cursor
-    setPaginationModel({ page: 0, pageSize: paginationModel.pageSize });
-    setLastDocumentIds({});
-    prevFilters.current = filters;
-  }, [filters]);
 
   const { data, isFetching: loadingTransactions} = useQuery(
     createTransactionsQueryOptions(
@@ -77,9 +61,11 @@ export default function Transaction() {
         pagination: {
           page: paginationModel.page,
           pageSize: paginationModel.pageSize,
-          lastDocumentId: (paginationModel.page > 0 && isFilterNotChanged(prevFilters.current, filters)) ? lastDocumentIds[paginationModel.page - 1] : null
+          lastDocumentId: paginationModel.page > 0 ? lastDocumentIds[paginationModel.page - 1] : null
         },
-        filters
+        filters: {
+          name, account, fromDate, toDate, category, minAmount, maxAmount
+        }
       },
       {
         staleTime: 5 * 60 * 1000,
@@ -89,6 +75,7 @@ export default function Transaction() {
       }))
   
   console.log(queryClient.getQueryCache().getAll())
+  console.log("filter", addFilterToUI)
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -256,8 +243,20 @@ export default function Transaction() {
             <span className="w-full h-px bg-gray-200 block my-5"></span>
             <div className="flex items-center mb-2 mx-2 gap-3">
               {/* Search transaction */}
-              <SearchTransaction />
-              <FilterTransaction itemId={itemId} />
+              <SearchTransaction
+                setPaginationModel={setPaginationModel}
+                pageSize={paginationModel.pageSize}
+                page={paginationModel.page}
+                setLastDocumentIds={setLastDocumentIds}
+              />
+              <FilterTransaction
+                itemId={itemId}
+                setAddFilterToUI={setAddFilterToUI}
+                setPaginationModel={setPaginationModel}
+                setLastDocumentIds={setLastDocumentIds}
+                pageSize={paginationModel.pageSize}
+                page={paginationModel.page}
+              />
               <div className="flex items-center gap-3">
                 {/* Add transaction */}    
                 <button
@@ -279,11 +278,27 @@ export default function Transaction() {
                       isDeleting ? "Deleting..." 
                         : selectedRowCount > 0 ? `Delete Selected (${selectedRowCount})` : 'Delete'
                     }
-
                   </span>
                 </button>
               </div>
             </div>
+            <div className="flex gap-2 mx-2 mb-2">
+              {addFilterToUI.map((filter, index) => (
+                <div
+                  key={`${filter.type}-${filter.value}`}
+                  className="flex gap-7 font-semibold bg-blue-500 py-1 px-2 w-fit rounded text-white hover:opacity-90 cursor-pointer"
+                >
+                  <span>{filter.value}</span>
+                  <button
+                    className="cursor-pointer"
+                  >
+                    X
+                  </button>
+                </div>
+            ))}
+
+            </div>
+
 
             <section>
               <div className="w-full">
