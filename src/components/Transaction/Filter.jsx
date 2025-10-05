@@ -4,8 +4,12 @@ import { IoIosOptions } from "react-icons/io";
 import { createAccountsQueryOptions } from "../../util/createQueryOptions";
 import prettyMapCategory from "../../constants/prettyMapCategory";
 import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
+import { IoSend } from "react-icons/io5";
 import useTransactionFilters from "../../hooks/useTransactionFilters";
-import { CgBookmark } from "react-icons/cg";
+import { format } from "date-fns/format";
+import { subDays } from "date-fns/subDays";
+import { subMonths } from "date-fns/subMonths";
 
 function AccountMenu({accounts, menu, toggleMenu, handleSetFilters}) {
     return (
@@ -80,7 +84,35 @@ function CategoryMenu({menu, toggleMenu, handleSetFilters}) {
     )
 }
 
-function AmountMenu({menu, toggleMenu, handleSetFilters}) {
+function AmountMenu({ menu, toggleMenu, handleSetFilters }) {
+    const [amountInputs, setAmountInputs] = useState({
+        minAmount: "",
+        maxAmount: ""
+    })
+    const [errors, setErrors] = useState();
+    const isInputValidated = () => {        
+        let newError = "";
+        if (amountInputs.minAmount > amountInputs.maxAmount
+            && amountInputs.maxAmount
+        ) {
+            newError = "Minimum amount is greater than maximum amount";
+        }
+        setErrors(newError);
+        return newError.length === 0;
+    } 
+    const getInputValues = () => {
+        let newInputs = { ...amountInputs };
+        if (amountInputs.minAmount && amountInputs.maxAmount) {
+            return newInputs;
+        }
+        if (amountInputs.minAmount) {
+            newInputs.maxAmount = amountInputs.minAmount;
+        } else if (amountInputs.maxAmount) {
+            newInputs.minAmount = amountInputs.maxAmount;
+        }
+        setAmountInputs(newInputs);
+        return newInputs;
+    }
     return (
         <>
             <button
@@ -91,30 +123,81 @@ function AmountMenu({menu, toggleMenu, handleSetFilters}) {
                 <span className="ml-auto">&gt;</span>
             </button>
             {menu === "amount" && (
-                <div className="absolute flex gap-2 overflow-auto left-full top-0 ml-1 p-1 shadow-lg rounded-md bg-white text-black z-9999">
-                    <TextField
-                        type="number"
-                        margin="dense"
-                        label="Min Amount"
-                        name="min_amount"
-                        sx={{width: '150px'}}
-                    />
-                    <TextField
-                        type="number"
-                        margin="dense"
-                        label="Max Amount"
-                        name="max_amount"
+                <div className="absolute flex flex-col left-full top-0 ml-1 p-1 shadow-lg rounded-md bg-white text-black z-9999">
+                    <div className="flex gap-2">
+                        <TextField
+                            type="number"
+                            margin="dense"
+                            label="Min"
+                            name="minAmount"
+                            value={amountInputs.minAmount}
+                            onChange={(e) =>
+                                setAmountInputs((prev) => ({ ...prev, minAmount: e.target.value }))}
+                            size="small"
+                            sx={{ width: '100px' }}
+                            error={!!errors}
+                            helperText={errors}
+                        />
+                        <TextField
+                            type="number"
+                            margin="dense"
+                            label="Max"
+                            name="maxAmount"
+                            value={amountInputs.maxAmount}
+                            onChange={(e) =>
+                                setAmountInputs((prev) => ({ ...prev, maxAmount: e.target.value }))}
+                            size="small"
+                            sx={{
+                                width: '100px'
+                            }}
+                        />
+                    </div>
+
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        endIcon={<IoSend />}
+                        className="self-center"
                         sx={{
-                            width: '150px'
+                            textTransform: "none", // disable all-caps
                         }}
-                    />
+                        onClick={() => {
+                            if (isInputValidated()) {
+                                const validatedInput = getInputValues();
+                                handleSetFilters("amount", validatedInput);
+                            }
+                        }}
+                    >
+                        Filter
+                    </Button>
                 </div>
             )}
         </>
     )
 }
 
-function DateMenu({menu, toggleMenu, handleSetFilters}) {
+function DateMenu({ menu, toggleMenu, handleSetFilters }) {
+    const getDateRange = (dateOption) => {
+        const now = new Date();
+        let startDate;
+        switch (dateOption) {
+            case "7 days":
+                startDate = subDays(now, 7);
+                break;
+            case "1 month":
+                startDate = subMonths(now, 1);
+                break;
+            case "3 months":
+                startDate = subMonths(now, 3);
+                break;
+            default:
+                startDate = now;
+        }
+        return {
+            startDate: format(startDate, "yyyy-MM-dd"),
+            endDate: format(now, "yyyy-MM-dd")
+        };
+    }
     return (
         <>
             <button
@@ -127,14 +210,32 @@ function DateMenu({menu, toggleMenu, handleSetFilters}) {
             {menu === "date" && (
                 <div className="absolute w-30 left-full top-0 ml-1 p-1 shadow-lg rounded-md bg-white text-black z-9999">
                     <ul className="list-none">
-                        <li className="p-2 hover:bg-blue-50 hover:text-blue-500">
+                        <li
+                            className="p-2 hover:bg-blue-50 hover:text-blue-500"
+                            onClick={() => {
+                                let dateObject = getDateRange("7 days")
+                                handleSetFilters("date", dateObject)
+                            }}
+                        >
                             Last 7 days
                         </li>
-                        <li className="p-2 hover:bg-blue-50 hover:text-blue-500">
+                        <li
+                            className="p-2 hover:bg-blue-50 hover:text-blue-500"
+                            onClick={() => {
+                                let dateObject = getDateRange("1 month")
+                                handleSetFilters("date", dateObject)
+                            }}
+                        >
                             Last 1 month
                         </li>
-                        <li className="p-2 hover:bg-blue-50 hover:text-blue-500">
-                            Last 3 month
+                        <li
+                            className="p-2 hover:bg-blue-50 hover:text-blue-500"
+                            onClick={() => {
+                                let dateObject = getDateRange("3 months")
+                                handleSetFilters("date", dateObject)
+                            }}
+                        >
+                            Last 3 months
                         </li>
                     </ul>
                 </div>
@@ -164,7 +265,6 @@ export default function FilterTransaction({itemId, setAddFilterToUI, setPaginati
         setAddFilterToUI((prev) => {
             // Replace old filter type with new value
             const exist = prev.find(f => f.type === type)
-            console.log(exist);
             if (exist) {
                 return prev.map(f => f.type === type ? { ...f, value } : f)
             } 
@@ -173,17 +273,41 @@ export default function FilterTransaction({itemId, setAddFilterToUI, setPaginati
             return [...prev, { type, value }];
         })
     }
+    const handleSetFiltersHelper = (type, value) => {
+        if (type === "amount") {
+            let minAmount = value.minAmount;
+            let maxAmount = value.maxAmount;
+            setFilters({ minAmount, maxAmount });
+            return;
+        } else if (type === "date") {
+            let startDate = value.startDate;
+            let endDate = value.endDate;
+            setFilters({ startDate, endDate });
+            return;
+        }
 
-    // Change filter and make api call
+        // For account, category
+        setFilters({ [type]: value });
+    }
+
+    // Change filters in URL params
     const handleSetFilters = (type, value) => {
+        // Remove amount filter from filter state if 
+        // minAmount and maxAmount input are empty
+        if (type === "amount") {
+            if (!value.minAmount && !value.maxAmount) {
+                setAddFilterToUI((prev) => prev.filter(f => f.type !== type));
+                return;
+            }
+        }
         // Reset to page 0
         // If in any page rather then first page
         if (page > 0) {
             setPaginationModel({ page: 0, pageSize });
             setLastDocumentIds();
         }
-        addFilters(type, value)
-        setFilters({[type]: value})
+        addFilters(type, value);
+        handleSetFiltersHelper(type, value);
     }
 
     return (

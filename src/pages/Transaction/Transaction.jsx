@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback, useId, useEffect, useLayoutEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { useAuth } from '../../contexts/authContext'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar'
@@ -11,9 +11,9 @@ import { useItemId } from '../../hooks/useItemId'
 import prettyMapCategory from '../../constants/prettyMapCategory'
 import SearchTransaction from '../../components/Transaction/SearchBar'
 import FilterTransaction from '../../components/Transaction/Filter'
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {useQuery, useQueryClient } from '@tanstack/react-query'
 import { createTransactionsQueryOptions } from '../../util/createQueryOptions'
-import { deleteBatchTransaction, deleteSingleTransaction, fetchTransactionsFromPlaid } from '../../api/transactions'
+import { deleteBatchTransaction, deleteSingleTransaction} from '../../api/transactions'
 import useTransactionFilters from '../../hooks/useTransactionFilters'
 
 // Memoized category cell component to prevent re-renders
@@ -51,7 +51,7 @@ export default function Transaction() {
   });
   const [addFilterToUI, setAddFilterToUI] = useState([]); // [ {type: account/category/..., value: ""} ]
   const {
-    name, account, fromDate, toDate, category, minAmount, maxAmount
+    name, account, startDate, endDate, category, minAmount, maxAmount
   } = useTransactionFilters();
 
   const { data, isFetching: loadingTransactions} = useQuery(
@@ -64,7 +64,7 @@ export default function Transaction() {
           lastDocumentId: paginationModel.page > 0 ? lastDocumentIds[paginationModel.page - 1] : null
         },
         filters: {
-          name, account, fromDate, toDate, category, minAmount, maxAmount
+          name, account, startDate, endDate, category, minAmount, maxAmount
         }
       },
       {
@@ -113,6 +113,19 @@ export default function Transaction() {
     setIsEditModalOpen(false);
     setSelectedTx(null);
   }, []);
+
+  // amount and date filter value is an object type
+  const displayFilterValue = (filter) => {
+    if (filter.type === "amount") {
+      const { minAmount, maxAmount } = filter.value;
+      return `$${minAmount} - $${maxAmount}`
+    }
+    if (filter.type === "date" && filter.value !== null) {
+      const { startDate, endDate } = filter.value;
+      return `${startDate} - ${endDate}`
+    }
+    return filter.value
+  }
 
   // Remove all cache instead of reinvalidating
   // There're more query key so reinvaliding would just keep old cache
@@ -283,19 +296,26 @@ export default function Transaction() {
               </div>
             </div>
             <div className="flex gap-2 mx-2 mb-2">
-              {addFilterToUI.map((filter, index) => (
-                <div
-                  key={`${filter.type}-${filter.value}`}
-                  className="flex gap-7 font-semibold bg-blue-500 py-1 px-2 w-fit rounded text-white hover:opacity-90 cursor-pointer"
-                >
-                  <span>{filter.value}</span>
-                  <button
-                    className="cursor-pointer"
+              {addFilterToUI.map((filter) => {
+                let displayValue = displayFilterValue(filter);
+                // Generate random background color in HSL
+                const hue = Math.floor(Math.random() * 360);
+                const bgColor = `hsl(${hue}, 70%, 60%)`;
+                return (
+                  <div
+                    key={`${filter.type}-${displayValue}`}
+                    className="flex gap-7 font-semibold py-1 px-2 text-white w-fit rounded hover:opacity-90 cursor-pointer"
+                    style={{ backgroundColor: bgColor}}
                   >
-                    X
-                  </button>
-                </div>
-            ))}
+                    <span>{displayValue}</span>
+                    <button
+                      className="cursor-pointer"
+                    >
+                      X
+                    </button>
+                  </div>
+                )
+              })}
 
             </div>
 

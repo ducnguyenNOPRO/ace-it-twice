@@ -99,7 +99,7 @@ const PlaidLinkWrapper = ({
         console.error("Error exchanging token:", error);
       }
     },
-    onExit: (error, metadata) => {
+    onExit: (error) => {
       console.warn("User exited Plaid Link", error);
       setShouldOpen(false);
       setLinkToken(null); // Unmount this component, allowing future re-mount with fresh token

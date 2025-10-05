@@ -1,6 +1,4 @@
-const { https } = require('firebase-functions');
 const { HttpsError } = require('firebase-functions/v2/https');
-const { useCallback } = require('react');
 
 // Ignore filter instead of throw error
 const validateDate = (dateStr, fieldName) => {
@@ -38,8 +36,8 @@ const validateFilters = (filters) => {
     let {
         name,
         account,
-        fromDate,
-        toDate,
+        startDate,
+        endDate,
         category,
         minAmount,
         maxAmount
@@ -49,8 +47,8 @@ const validateFilters = (filters) => {
     name = name || null;
     account = account || null;
     category = category || null;
-    fromDate = fromDate || null;
-    toDate = toDate || null;
+    startDate = startDate || null;
+    endDate = endDate || null;
     minAmount = minAmount || null;
     maxAmount = maxAmount || null;
 
@@ -74,12 +72,12 @@ const validateFilters = (filters) => {
         if (!account) account = null;
     }
 
-    fromDate = validateDate(fromDate, 'fromDate');
-    toDate = validateDate(toDate, 'toDate')
+    startDate = validateDate(startDate, 'startDate');
+    endDate = validateDate(endDate, 'endDate')
 
     // date range
-    if (fromDate && toDate && fromDate > toDate) {
-        throw new HttpsError("invalid-argument", "fromDate cannot be after toDate");
+    if (startDate && endDate && startDate > endDate) {
+        throw new HttpsError("invalid-argument", "startDate cannot be after endDate");
     }
 
     // Category 
@@ -115,8 +113,8 @@ const validateFilters = (filters) => {
     return {
         name,
         account,
-        fromDate,
-        toDate,
+        startDate,
+        endDate,
         category,
         minAmount,
         maxAmount

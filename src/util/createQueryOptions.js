@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query"
-import { getTransactionsFilteredPaginated, getRecentTransactions } from "../api/transactions"
+import { getTransactionsFilteredPaginated, getRecentTransactions, getMonthlyTransactions } from "../api/transactions"
 import { getAccounts } from "../api/accounts"
 
 export function createTransactionsQueryOptions(

@@ -1,4 +1,3 @@
-import { keyframes } from "@emotion/react";
 import { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -7,8 +6,8 @@ export default function useTransactionFilters() {
 
     const name = searchParams.get("name") || '';
     const account = searchParams.get("account") || '';
-    const fromDate = searchParams.get("fromDate") || '';
-    const toDate = searchParams.get("toDate") || '';
+    const startDate = searchParams.get("startDate") || '';
+    const endDate = searchParams.get("endDate") || '';
     const category = searchParams.get("category") || '';
     const minAmount = searchParams.get("minAmount") || '';
     const maxAmount = searchParams.get("maxAmount") || '';
@@ -17,6 +16,8 @@ export default function useTransactionFilters() {
         setSearchParams((params) => {
             Object.entries(filters).forEach(([key, value]) => {
                 if (value !== undefined && value !== '') {
+                    console.log("Key", key);
+                    console.log("Value", value);
                     params.set(key, value);
                 } else {
                     params.delete(key); // Remove empty params from URL
@@ -58,8 +59,8 @@ export default function useTransactionFilters() {
     return {
         name,
         account,
-        fromDate,
-        toDate,
+        startDate,
+        endDate,
         category,
         minAmount,
         maxAmount,

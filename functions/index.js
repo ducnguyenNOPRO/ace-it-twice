@@ -241,6 +241,7 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
         merchant_name: tx.merchant_name || tx.name,
         merchant_name_lower: tx.merchant_name?.toLowerCase() || tx.name?.toLowerCase(),
         amount: tx.amount * -1,
+        amount_filter: tx.amount < 0 ? tx.amount * -1 : tx.amount,
         iso_currency_code: tx.iso_currency_code,
         date: tx.date,
         //datetime: tx.datetime,
@@ -305,8 +306,8 @@ exports.getTransactionsFilteredPaginated = onCall(async (request) => {
   const {
     name,
     account,
-    fromDate,
-    toDate,
+    startDate,
+    endDate,
     category,
     minAmount,
     maxAmount
@@ -329,20 +330,20 @@ exports.getTransactionsFilteredPaginated = onCall(async (request) => {
     if (account) {
       query = query.where("account_name", "==", account)
     }
-    if (fromDate) {
-      query = query.where("date", ">=", fromDate)
+    if (startDate) {
+      query = query.where("date", ">=", startDate)
     }
-    if (toDate) {
-      query = query.where("date", "<=", toDate)
+    if (endDate) {
+      query = query.where("date", "<=", endDate)
     }
     if (category) {
       query = query.where("category", "==", category)
     }
-    if (minAmount) {
-      query = query.where("amount", ">=", minAmount)
+    if (minAmount !== null && minAmount !== undefined) {
+      query = query.where("amount_filter", ">=", minAmount)
     }
-    if (maxAmount) {
-      query = query.where("amount", "<=", maxAmount)
+    if (maxAmount !== null && maxAmount !== undefined) {
+      query = query.where("amount_filter", "<=", maxAmount)
     }
 
     // Use count() aggregation (Admin SDK doesn’t have getCountFromServer)
