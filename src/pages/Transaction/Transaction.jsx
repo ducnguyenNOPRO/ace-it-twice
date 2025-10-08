@@ -49,10 +49,19 @@ export default function Transaction() {
     type: "include",
     ids: new Set(),
   });
-  const [addFilterToUI, setAddFilterToUI] = useState([]); // [ {type: account/category/..., value: ""} ]
   const {
-    name, account, startDate, endDate, category, minAmount, maxAmount
+    name, account, startDate, endDate, category, minAmount, maxAmount, setFilters
   } = useTransactionFilters();
+  const [addFilterToUI, setAddFilterToUI] = useState(() => {
+    const filters = [];
+
+    if (account) filters.push({ type: "account", value: account });
+    if (startDate || endDate) filters.push({ type: "date", value: { startDate, endDate } });
+    if (category) filters.push({ type: "category", value: category });
+    if (minAmount || maxAmount) filters.push({ type: "amount", value: { minAmount, maxAmount } });
+
+    return filters;
+  }); // [ {type: account/category/..., value: ""} ]
 
   const { data, isFetching: loadingTransactions} = useQuery(
     createTransactionsQueryOptions(
@@ -76,7 +85,7 @@ export default function Transaction() {
   
   console.log(queryClient.getQueryCache().getAll())
   console.log("filter", addFilterToUI)
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState(null);
@@ -125,6 +134,23 @@ export default function Transaction() {
       return `${startDate} - ${endDate}`
     }
     return filter.value
+  }
+
+  const handleDeleteFilters = (filter) => {
+    if (paginationModel.page > 0) {
+      setPaginationModel(prev => ({ page: 0, pageSize: prev.pageSize }));
+      setLastDocumentIds();
+    }
+    setAddFilterToUI(prev => prev.filter(f => f.type !== filter.type));
+
+    // Set value to "" to remove from URL
+    if (filter.type === "amount") {
+      setFilters({minAmount: "", maxAmount: ""})
+    } else if (filter.type === "date") {
+      setFilters({ startDate: "", endDate: "" });
+    } else {
+      setFilters({ [filter.type]: "" }); 
+    }
   }
 
   // Remove all cache instead of reinvalidating
@@ -288,7 +314,7 @@ export default function Transaction() {
                   <IoAddCircleSharp />
                   <span>
                     {
-                      isDeleting ? "Deleting..." 
+                      isDeleting ? "Button is disabled" 
                         : selectedRowCount > 0 ? `Delete Selected (${selectedRowCount})` : 'Delete'
                     }
                   </span>
@@ -305,28 +331,24 @@ export default function Transaction() {
                   <div
                     key={`${filter.type}-${displayValue}`}
                     className="flex gap-7 font-semibold py-1 px-2 text-white w-fit rounded hover:opacity-90 cursor-pointer"
+                    onClick={() => handleDeleteFilters(filter)}
                     style={{ backgroundColor: bgColor}}
                   >
                     <span>{displayValue}</span>
-                    <button
-                      className="cursor-pointer"
-                    >
+                    <div>
                       X
-                    </button>
+                    </div>
                   </div>
                 )
               })}
-
             </div>
-
-
             <section>
               <div className="w-full">
                 <DataGrid
                   rows={transactions}
                   columns={columns}
                   disableColumnResize={true}
-                  checkboxSelection
+                  //checkboxSelection
                   paginationMode="server"
                   paginationModel={paginationModel}
                   rowCount={data?.totalCount}

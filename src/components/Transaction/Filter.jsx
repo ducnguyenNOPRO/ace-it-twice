@@ -92,8 +92,10 @@ function AmountMenu({ menu, toggleMenu, handleSetFilters }) {
     const [errors, setErrors] = useState();
     const isInputValidated = () => {        
         let newError = "";
-        if (amountInputs.minAmount > amountInputs.maxAmount
-            && amountInputs.maxAmount
+        const minAmount = parseFloat(amountInputs.minAmount);
+        const maxAmount = parseFloat(amountInputs.maxAmount);
+        if (minAmount > maxAmount
+            && maxAmount
         ) {
             newError = "Minimum amount is greater than maximum amount";
         }
@@ -297,6 +299,7 @@ export default function FilterTransaction({itemId, setAddFilterToUI, setPaginati
         if (type === "amount") {
             if (!value.minAmount && !value.maxAmount) {
                 setAddFilterToUI((prev) => prev.filter(f => f.type !== type));
+                handleSetFiltersHelper(type, value);
                 return;
             }
         }

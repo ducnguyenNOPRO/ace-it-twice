@@ -12,6 +12,7 @@ import prettyMapCategory from "../../constants/prettyMapCategory"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { addTransaction, editTransactionById } from "../../api/transactions"
 import { createAccountsQueryOptions, createTransactionsQueryOptions } from "../../util/createQueryOptions"
+import useTransactionFilters from "../../hooks/useTransactionFilters"
 
 export default function AddAndEditTransactionModal({ open, onClose, setPaginationModel, setLastDocumentIds,
     mode, transaction, itemId, paginationModel, lastDocumentIds
@@ -24,7 +25,10 @@ export default function AddAndEditTransactionModal({ open, onClose, setPaginatio
             staleTime: Infinity,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false
-    }))
+            }))
+    const {
+        name, account, startDate, endDate, category, minAmount, maxAmount
+      } = useTransactionFilters();
     const [errors, setErrors] = useState({});
     
     if (!open) {
@@ -113,7 +117,7 @@ export default function AddAndEditTransactionModal({ open, onClose, setPaginatio
     // and add new cache when refetch instead replace old cache
     const refetchTransactions = useCallback(async () => {
         queryClient.removeQueries({
-            queryKey: ["transactions", { itemId }]
+            queryKey: ["transactions", itemId]
         })
         // Clear lastDocumentIds state
         setLastDocumentIds({});
@@ -130,9 +134,14 @@ export default function AddAndEditTransactionModal({ open, onClose, setPaginatio
         queryClient.setQueryData(
             createTransactionsQueryOptions({
                 itemId,
-                page: paginationModel.page,
-                pageSize: paginationModel.pageSize,
-                lastDocumentId: paginationModel.page > 0 ? lastDocumentIds[paginationModel.page - 1] : null,
+                pagination: {
+                    page: paginationModel.page,
+                    pageSize: paginationModel.pageSize,
+                    lastDocumentId: paginationModel.page > 0 ? lastDocumentIds[paginationModel.page - 1] : null
+                },
+                filters: {
+                    name, account, startDate, endDate, category, minAmount, maxAmount
+                },
             }).queryKey,
             (oldData) => {
                 if (!oldData) return oldData;
@@ -164,11 +173,15 @@ export default function AddAndEditTransactionModal({ open, onClose, setPaginatio
         const account = accounts.find(acc =>
             acc.name.toLowerCase() === formValues.account_name.toLowerCase()
         )
+        const amount = Number(formValues.amount);
 
         if (mode === "Add") {
             const transactionToAdd = {
                 ...formValues,
-                amount: Number(formValues.amount),
+                merchant_name_lower: formValues.merchant_name.toLowerCase(),
+                category_lower: formValues.category.toLowerCase(),
+                amount: Number(amount) * -1,
+                amount_filter: amount < 0 ? amount * -1 : amount,
                 pending: formValues.pending === "true" || formValues.pending === true,
                 account_mask: account.mask,
                 account_id: account.account_id,
@@ -181,7 +194,10 @@ export default function AddAndEditTransactionModal({ open, onClose, setPaginatio
             const transactionToUpdateId = transaction.transaction_id || transaction.id;
             const transactionToUpdate = {
                 ...formValues,
+                merchant_name_lower: formValues.merchant_name.toLowerCase(),
+                category_lower: formValues.category.toLowerCase(),
                 amount: Number(formValues.amount),
+                amount_filter: amount < 0 ? amount * -1 : amount,
                 account_mask: account.mask,
                 account_id: account.account_id,
             }

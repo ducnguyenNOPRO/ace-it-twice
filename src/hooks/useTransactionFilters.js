@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
 export default function useTransactionFilters() {
@@ -12,49 +11,21 @@ export default function useTransactionFilters() {
     const minAmount = searchParams.get("minAmount") || '';
     const maxAmount = searchParams.get("maxAmount") || '';
 
-    const setFilters = useCallback((filters) => {
+    const setFilters = (filters) => {
         setSearchParams((params) => {
+            // Create a new URLSearchParams object to avoid mutation issues
+            const newParams = new URLSearchParams(params);
+            
             Object.entries(filters).forEach(([key, value]) => {
                 if (value !== undefined && value !== '') {
-                    console.log("Key", key);
-                    console.log("Value", value);
-                    params.set(key, value);
+                    newParams.set(key, value);
                 } else {
-                    params.delete(key); // Remove empty params from URL
+                    newParams.delete(key);
                 }
-            })
-            
-            // if (filters.name !== undefined) {
-            //     params.set("name", filters.name);
-            // }
-
-            // if (filters.account !== undefined) {
-            //     params.set("account", filters.account);
-            // }
-
-            // if (filters.from !== undefined) {
-            //     params.set("from", filters.from);
-            // }
-
-            // if (filters.to !== undefined) {
-            //     params.set("to", filters.to);
-            // }
-
-            // if (filters.category !== undefined) {
-            //     params.set("category", filters.category);
-            // }
-
-            // if (filters.minAmount !== undefined) {
-            //     params.set("minAmount", filters.minAmount);
-            // }
-
-            // if (filters.maxAmount !== undefined) {
-            //     params.set("maxAmount", filters.maxAmount);
-            // }
-
-            return params;
+            });          
+            return newParams;
         });
-    }, [])
+    }
 
     return {
         name,
