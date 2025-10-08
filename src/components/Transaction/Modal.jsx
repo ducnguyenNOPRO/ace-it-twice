@@ -9,14 +9,14 @@ import Button from "@mui/material/Button"
 import Tooltip from "@mui/material/Tooltip"
 import { IoIosHelpCircleOutline } from "react-icons/io"
 import prettyMapCategory from "../../constants/prettyMapCategory"
-import { functions } from "../../firebase/firebase"
-import { httpsCallable } from "firebase/functions"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import showToastDuringAsync from "../../util/showToastDuringAsync"
 import { addTransaction, editTransactionById } from "../../api/transactions"
 import { createAccountsQueryOptions, createTransactionsQueryOptions } from "../../util/createQueryOptions"
+import useTransactionFilters from "../../hooks/useTransactionFilters"
 
-export default function AddAndEditTransactionModal({ open, onClose, mode, transaction, itemId }) {
+export default function AddAndEditTransactionModal({ open, onClose, setPaginationModel, setLastDocumentIds,
+    mode, transaction, itemId, paginationModel, lastDocumentIds
+}) {
     const queryClient = useQueryClient();
     // default to empty [] till fetched
     const { data: accounts = [], isLoading: loadingAccs } = useQuery(
@@ -25,23 +25,14 @@ export default function AddAndEditTransactionModal({ open, onClose, mode, transa
             staleTime: Infinity,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false
-    }))
+            }))
+    const {
+        name, account, startDate, endDate, category, minAmount, maxAmount
+      } = useTransactionFilters();
     const [errors, setErrors] = useState({});
     
     if (!open) {
         return null;
-    }
-
-    if (mode === "Edit") {
-        if (!transaction || loadingAccs) {
-            return (
-                <Dialog open={open} onClose={onClose}>
-                    <DialogContent>
-                        <div>Loading...</div>
-                    </DialogContent>
-                </Dialog>
-            );
-        }
     }
 
     const defaultValues = useMemo(() => ({
@@ -119,7 +110,54 @@ export default function AddAndEditTransactionModal({ open, onClose, mode, transa
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
-    }, [])  
+    }, [])
+    
+    // Remove all cache instead of reinvalidating
+    // There're more query key so reinvaliding would just keep old cache
+    // and add new cache when refetch instead replace old cache
+    const refetchTransactions = useCallback(async () => {
+        queryClient.removeQueries({
+            queryKey: ["transactions", itemId]
+        })
+        // Clear lastDocumentIds state
+        setLastDocumentIds({});
+
+        // Refetch page 0
+        setPaginationModel((prev) => ({
+            ...prev,
+            page: 0
+        }))
+    }, [itemId])
+
+    // Update a specific transaction in the current cache
+    const manuallyUpdateCache = (transactionToUpdateId, transactionToUpdate) => {
+        queryClient.setQueryData(
+            createTransactionsQueryOptions({
+                itemId,
+                pagination: {
+                    page: paginationModel.page,
+                    pageSize: paginationModel.pageSize,
+                    lastDocumentId: paginationModel.page > 0 ? lastDocumentIds[paginationModel.page - 1] : null
+                },
+                filters: {
+                    name, account, startDate, endDate, category, minAmount, maxAmount
+                },
+            }).queryKey,
+            (oldData) => {
+                if (!oldData) return oldData;
+                const updatedData = {
+                    ...oldData,
+                    transactions: oldData.transactions.map(tx => 
+                        tx.transaction_id === transactionToUpdateId 
+                            ? { ...tx, ...transactionToUpdate } 
+                            : tx
+                    )
+                };
+                
+                return updatedData;
+            }
+        )
+    }
 
     const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
@@ -127,42 +165,75 @@ export default function AddAndEditTransactionModal({ open, onClose, mode, transa
         const formValues = Object.fromEntries(formData.entries());
 
         const validate = validateInput(formValues);
-        
+
         if (!validate) {
-           return;
+            return;
         }
-        // Find the account name and mask
-        const account = accounts.find(acc => 
-            acc.name.toLowerCase() === formValues.account_name.toLowerCase()        
+        // Find the account chosen by user in the drop down
+        const account = accounts.find(acc =>
+            acc.name.toLowerCase() === formValues.account_name.toLowerCase()
         )
+        const amount = Number(formValues.amount);
 
         if (mode === "Add") {
-            const txToSave = {
+            const transactionToAdd = {
                 ...formValues,
-                amount: Number(formValues.amount),
+                merchant_name_lower: formValues.merchant_name.toLowerCase(),
+                category_lower: formValues.category.toLowerCase(),
+                amount: Number(amount) * -1,
+                amount_filter: amount < 0 ? amount * -1 : amount,
                 pending: formValues.pending === "true" || formValues.pending === true,
                 account_mask: account.mask,
                 account_id: account.account_id,
                 iso_currency_code: "USD",
             }
-            await addTransaction(txToSave, itemId, onClose);
-            queryClient.invalidateQueries({
-                  queryKey: createTransactionsQueryOptions().queryKey
-            });
+            await addTransaction(transactionToAdd, itemId, onClose);
+            // Remove all cache and refetch page 0
+            refetchTransactions();
         } else if (mode === "Edit") {
-            const txId = transaction.transaction_id || transaction.id;
-            const txToSave = {
+            const transactionToUpdateId = transaction.transaction_id || transaction.id;
+            const transactionToUpdate = {
                 ...formValues,
+                merchant_name_lower: formValues.merchant_name.toLowerCase(),
+                category_lower: formValues.category.toLowerCase(),
                 amount: Number(formValues.amount),
+                amount_filter: amount < 0 ? amount * -1 : amount,
                 account_mask: account.mask,
                 account_id: account.account_id,
             }
-            await editTransactionById(txId, txToSave, itemId, onClose);
-            queryClient.invalidateQueries({
-                  queryKey: createTransactionsQueryOptions().queryKey
-            });
+            await editTransactionById(transactionToUpdateId, transactionToUpdate, itemId, onClose);
+
+            // Update cache if date field not change
+            if (transaction.date === transactionToUpdate.date) {
+                manuallyUpdateCache(transactionToUpdateId, transactionToUpdate)
+                return;
+            }
+            // Remove all cache and refetch page 0
+            refetchTransactions();
         }
-    }, [validateInput, errors])
+    }, [validateInput, errors, accounts]);
+
+    if (mode === "Edit") {
+        if (!transaction || loadingAccs) {
+            return (
+                <Dialog open={open} onClose={onClose}>
+                    <DialogContent>
+                        <div>Loading...</div>
+                    </DialogContent>
+                </Dialog>
+            );
+        }
+    }
+
+    if (loadingAccs) {
+            return (
+                <Dialog open={open} onClose={onClose}>
+                    <DialogContent>
+                        <div>Loading...</div>
+                    </DialogContent>
+                </Dialog>
+            );
+    }
 
     return (
         <Dialog open={open} onClose={onClose}>

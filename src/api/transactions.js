@@ -10,13 +10,42 @@ export async function fetchTransactionsFromPlaid(itemId) {
     await fetchTransactions({ itemId });
 }
 
-export async function getTransactions({ itemId }) {
-    if (!itemId) throw new Error("Frontend: Missing itemId");
+export async function getTransactionsFilteredPaginated(params = {}) {
+    if (!params.itemId) throw new Error("Frontend: Missing itemId");
 
-    const getTransactions = httpsCallable(functions, "getTransactions");
-    const { data } = await getTransactions({ itemId });
+    const getTransactionsFilteredPaginated = httpsCallable(functions, "getTransactionsFilteredPaginated");
+    try {
+        const { data } = await getTransactionsFilteredPaginated(params);
+        return data;
+    } catch (error) {
+        console.error('Firebase function error:', error);
+        throw error;
+    }
+}
 
-    return data.transactions;
+export async function getRecentTransactions(params = {}) {
+    if (!params.itemId) throw new Error("Frontend: Missing itemId");
+
+    const getRecentTransacitons = httpsCallable(functions, "getRecentTransactions");
+    try {
+        const { data } = await getRecentTransacitons(params);
+        return data;
+    } catch (error) {
+        console.error('Firebase function error:', error);
+        throw error;
+    }
+}
+export async function getMonthlyTransactions(params = {}) {
+    if (!params.itemId) throw new Error("Frontend: Missing itemId");
+
+    const getMonthlyTransacitons = httpsCallable(functions, "getMonthlyTransacitons");
+    try {
+        const { data } = await getMonthlyTransacitons(params);
+        return data;
+    } catch (error) {
+        console.error('Firebase function error:', error);
+        throw error;
+    }
 }
 
 export async function addTransaction(transactionData, itemId, onClose) {
@@ -37,15 +66,15 @@ export async function addTransaction(transactionData, itemId, onClose) {
     )
 }
 
-export async function editTransactionById(transactionId, transactionData, itemId, onClose) {
-    if (!transactionId) throw new Error("Frontend: Missing transactionId");
+export async function editTransactionById(transactionToUpdateId, transactionData, itemId, onClose) {
+    if (!transactionToUpdateId) throw new Error("Frontend: Missing transactionId");
     if (!transactionData) throw new Error("Frontend: Missing transaction to update");
     if (!itemId) throw new Error("Frontend: Missing itemId");
     if (!transactionData) throw new Error("Frontend: Missing transaction to saved");
 
     const editTransactionById = httpsCallable(functions, "editTransactionById");
     await showToastDuringAsync(
-        editTransactionById({ transactionId, transaction: transactionData, itemId }),
+        editTransactionById({ transactionToUpdateId, transactionData, itemId }),
         {
             loadingMessage: "Saving Transaction...",
             successMessage: "Transaction updated successfully",
@@ -57,13 +86,13 @@ export async function editTransactionById(transactionId, transactionData, itemId
     )
 }
 
-export async function deleteSingleTransaction(transactionId, itemId) {
+export async function deleteSingleTransaction(transactionToDeleteId, itemId) {
     if (!itemId) throw new Error("Frontend: Missing itemId");
-    if (!transactionId) throw new Error("Frontend: Missing transactionId");
+    if (!transactionToDeleteId) throw new Error("Frontend: Missing transactionId");
 
     const deleteTransactionById = httpsCallable(functions, "deleteTransactionById");
     await showToastDuringAsync(
-        deleteTransactionById({transactionId, itemId}),
+        deleteTransactionById({transactionToDeleteId, itemId}),
         {
         loadingMessage: "Deleting transaction...",
         successMessage: "Transaction deleted successfully",
@@ -80,7 +109,7 @@ export async function deleteBatchTransaction(selectedTransactionIds, itemId) {
     }
 
     const deleteBatchTransaction = httpsCallable(functions, "deleteBatchTransaction");
-    const result = await showToastDuringAsync(
+    const {data} = await showToastDuringAsync(
         deleteBatchTransaction({selectedTransactionIds, itemId}),
         {
         loadingMessage: `Deleting ${selectedTransactionIds.length} transactions...`,
@@ -88,5 +117,5 @@ export async function deleteBatchTransaction(selectedTransactionIds, itemId) {
         errorMessage: `Failed to delete ${selectedTransactionIds.length} transactions. Try again later`,
         }
     )
-    return result;
+    return data;
 }

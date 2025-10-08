@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback, useId } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { useAuth } from '../../contexts/authContext'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar'
@@ -9,11 +9,12 @@ import RowActionMenu from '../../components/Transaction/RowActionMenu'
 import { IoAddCircleSharp} from 'react-icons/io5'
 import { useItemId } from '../../hooks/useItemId'
 import prettyMapCategory from '../../constants/prettyMapCategory'
-import { FiRefreshCw } from "react-icons/fi"
 import SearchTransaction from '../../components/Transaction/SearchBar'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import FilterTransaction from '../../components/Transaction/Filter'
+import {useQuery, useQueryClient } from '@tanstack/react-query'
 import { createTransactionsQueryOptions } from '../../util/createQueryOptions'
-import { deleteBatchTransaction, deleteSingleTransaction, fetchTransactionsFromPlaid } from '../../api/transactions'
+import { deleteBatchTransaction, deleteSingleTransaction} from '../../api/transactions'
+import useTransactionFilters from '../../hooks/useTransactionFilters'
 
 // Memoized category cell component to prevent re-renders
 const CategoryCell = React.memo(({ value }) => (
@@ -37,43 +38,71 @@ const CategoryCell = React.memo(({ value }) => (
 
 export default function Transaction() {
   const { currentUser } = useAuth();
-  const [paginationModel, setPaginationModel] = useState({
-    page: 0,
-    pageSize: 10
-  })
-  const [lastDocIds, setLastDocIds] = useState({}) // Store lastDoc for each page
-  const queryClient = useQueryClient();
   const { itemId, loadingItemId } = useItemId(currentUser.uid);
-  const { data: transactions = [], isLoading: loadingTransactions, refetch: refetchTransactions } = useQuery(
+  const queryClient = useQueryClient();
+  const [lastDocumentIds, setLastDocumentIds] = useState({})
+  const [paginationModel, setPaginationModel] = useState({  // Manually handle page model
+    page: 0,
+    pageSize: 5
+  })
+  const [rowSelectionModel, setRowSelectionModel] = useState({  // Manually handle row model
+    type: "include",
+    ids: new Set(),
+  });
+  const {
+    name, account, startDate, endDate, category, minAmount, maxAmount, setFilters
+  } = useTransactionFilters();
+  const [addFilterToUI, setAddFilterToUI] = useState(() => {
+    const filters = [];
+
+    if (account) filters.push({ type: "account", value: account });
+    if (startDate || endDate) filters.push({ type: "date", value: { startDate, endDate } });
+    if (category) filters.push({ type: "category", value: category });
+    if (minAmount || maxAmount) filters.push({ type: "amount", value: { minAmount, maxAmount } });
+
+    return filters;
+  }); // [ {type: account/category/..., value: ""} ]
+
+  const { data, isFetching: loadingTransactions} = useQuery(
     createTransactionsQueryOptions(
-      { itemId },
       {
-        staleTime: Infinity,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: false
+        itemId,
+        pagination: {
+          page: paginationModel.page,
+          pageSize: paginationModel.pageSize,
+          lastDocumentId: paginationModel.page > 0 ? lastDocumentIds[paginationModel.page - 1] : null
+        },
+        filters: {
+          name, account, startDate, endDate, category, minAmount, maxAmount
+        }
+      },
+      {
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: true,
+        refetchOnReconnect: false,
+        enabled: !!itemId
       }))
-  const [searchQuery, setSearchQuery] = useState('');
+  
+  console.log(queryClient.getQueryCache().getAll())
+  console.log("filter", addFilterToUI)
+  const [isDeleting, setIsDeleting] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState(null);
   const [selectedRowCount, setSelectedRowCount] = useState(0);
   const [selectedRowIds, setSelectedRowIds] = useState([]);  // For Batch transaction deletion
-  
-  // User click refresh button
-  // --> Manually refetch from Plaid
-  // --> read from DB
-  const {mutate, isPending} = useMutation({
-    mutationFn: (itemId) => fetchTransactionsFromPlaid(itemId),
-    onSuccess: () => {
-      // After fetching from Plaid, refetch Firestore
-      refetchTransactions()
-    }
-  })
+  const transactions = data?.transactions ?? [];
+  const pagination = data?.pagination ?? {};
 
-  // Manually refetch from Plaid
-  const handleRefresh = useCallback(() => {
-    mutate(itemId)
-  }, [itemId]);
+  useEffect(() => { 
+    if (pagination?.nextCursor) {
+      setLastDocumentIds((prev) => ({
+        ...prev,
+        [pagination.page]: pagination.nextCursor
+      }))
+    }
+  }, [pagination])
+
 
   const handleOpenAddModal = useCallback(() => {
     setIsAddModalOpen(true);
@@ -94,27 +123,104 @@ export default function Transaction() {
     setSelectedTx(null);
   }, []);
 
+  // amount and date filter value is an object type
+  const displayFilterValue = (filter) => {
+    if (filter.type === "amount") {
+      const { minAmount, maxAmount } = filter.value;
+      return `$${minAmount} - $${maxAmount}`
+    }
+    if (filter.type === "date" && filter.value !== null) {
+      const { startDate, endDate } = filter.value;
+      return `${startDate} - ${endDate}`
+    }
+    return filter.value
+  }
+
+  const handleDeleteFilters = (filter) => {
+    if (paginationModel.page > 0) {
+      setPaginationModel(prev => ({ page: 0, pageSize: prev.pageSize }));
+      setLastDocumentIds();
+    }
+    setAddFilterToUI(prev => prev.filter(f => f.type !== filter.type));
+
+    // Set value to "" to remove from URL
+    if (filter.type === "amount") {
+      setFilters({minAmount: "", maxAmount: ""})
+    } else if (filter.type === "date") {
+      setFilters({ startDate: "", endDate: "" });
+    } else {
+      setFilters({ [filter.type]: "" }); 
+    }
+  }
+
+  // Remove all cache instead of reinvalidating
+  // There're more query key so reinvaliding would just keep old cache
+  // and add new cache when refetch instead replace old cache
+  const refetchTransactions = useCallback(async () => {
+      queryClient.removeQueries({
+        queryKey: ["transactions", { itemId }]
+      })
+      // Clear lastDocumentIds state
+      setLastDocumentIds({});
+
+      // Refetch page 0
+      setPaginationModel((prev) => ({
+          ...prev,
+          page: 0
+      }))
+  }, [itemId])
+
   // Delete a single a transaction
   const handleDeleteSingleTransaction = useCallback(async (row) => {
-    const transactionId = row.id || row.transaction_id;
-    await deleteSingleTransaction(transactionId, itemId);
-    queryClient.invalidateQueries({
-      queryKey: createTransactionsQueryOptions().queryKey
-    });
-  }, [itemId]);
+    setIsDeleting(true);
+    const transactionToDeleteId = row.id || row.transaction_id;
+    await deleteSingleTransaction(transactionToDeleteId, itemId);
+    setIsDeleting(false);
+    refetchTransactions();
+  }, [itemId, refetchTransactions]);
 
   // Delete many transaction at once
   const handleDeleteBatchTransactions = useCallback(async () => {
+    setIsDeleting(true);
     const result = await deleteBatchTransaction(selectedRowIds, itemId);
 
-    if (result.data.success) { 
-      queryClient.invalidateQueries({
-        queryKey: createTransactionsQueryOptions().queryKey
-      });
+    if (result?.success) { 
+      refetchTransactions();
       setSelectedRowCount(0);
       setSelectedRowIds([]);
     }
-  }, [selectedRowIds, itemId])
+    setIsDeleting(false);
+  }, [selectedRowIds, itemId, refetchTransactions])
+
+  const handleRowSelectionChange = useCallback((newRowSelectionModel) => {
+    setRowSelectionModel(newRowSelectionModel)
+    let ids = [];
+    if (newRowSelectionModel?.type === 'include') {
+      // "include" type --> selected transactions stored in ids Set
+      setSelectedRowCount(newRowSelectionModel.ids.size);
+      setSelectedRowIds(Array.from(newRowSelectionModel.ids)); // Convert Set to Array
+      return;
+    }
+    if (newRowSelectionModel?.type === 'exclude') {
+      const excluded = newRowSelectionModel.ids || new Set();
+      // "exclude" type --> transactions that are not selected are store in ids.
+      // Keep the selected transactions by filtering the non selected txs
+      ids = transactions.filter(row => !excluded.has(String(row.id))).map(row => row.id);
+      setSelectedRowIds(ids);
+      setSelectedRowCount(ids.length);
+    }
+
+  }, [transactions]) // same function
+
+  const handlePaginationModelChange = useCallback((newModel) => {
+    // Reset row selection model
+    // Uncheck all rows
+    setRowSelectionModel({ type: "include", ids: new Set() });
+    setPaginationModel(newModel);
+
+    setSelectedRowCount(0);
+    setSelectedRowIds([]);
+  }, []);
 
   const columns = useMemo(() => [
     { field: 'account_name', headerName: 'Account', flex: 1.5 },
@@ -137,7 +243,7 @@ export default function Transaction() {
       headerName: 'Amount',
       flex: 0.7,
       renderCell: (params) => (
-        <span className={params.value > 0 ? 'text-red-500' : 'text-green-600'}>
+        <span className={params.value > 0 ? 'text-green-600' : 'text-red-500'}>
           ${Math.abs(params.value).toFixed(2)}
         </span>
       ),
@@ -154,43 +260,11 @@ export default function Transaction() {
           row={params.row}
           handleOpenEditModal={handleOpenEditModal}
           handleDeleteTransaction={handleDeleteSingleTransaction}
+          isDeleting={isDeleting}
         />
       )
     }
   ], [handleOpenEditModal, handleDeleteSingleTransaction]);
-
-  const filteredTransactions = useMemo(() => {
-    if (!searchQuery || searchQuery.length === 0) return transactions;
-    return transactions.filter((tx) =>
-      tx.account_name.toLowerCase().includes(searchQuery) ||
-      tx.date.toLowerCase().includes(searchQuery) ||
-      tx.merchant_name.toLowerCase().includes(searchQuery) ||
-      tx.category.toLowerCase().includes(searchQuery) ||
-      tx.amount.toString().toLowerCase().includes(searchQuery)
-    );
-  }, [transactions, searchQuery]);
-
-  // Memoize row selection handler
-  const handleRowSelectionChange = useCallback((newSelection) => {
-    let ids = [];
-    // newSelection.ids is type Set
-    if (newSelection?.type === 'include') {
-      // inclde type = selected transaciton stored in ids Set
-      setSelectedRowCount(newSelection.ids.size);
-      setSelectedRowIds(Array.from(newSelection.ids)); // Convert Set to Array
-      return;
-    }
-    if (newSelection?.type === 'exclude') {
-      const excluded = newSelection.ids || new Set();
-      // exclude type = transactions that are not selected
-      // are now store in ids.
-      // Keep the selected transactions by filtering the non selected txs
-      ids = transactions.filter(row => !excluded.has(String(row.id))).map(row => row.id);
-      console.log(ids);
-    }
-    setSelectedRowIds(ids);
-    setSelectedRowCount(ids.length);
-  }, [transactions]) // same function
 
   if (loadingItemId) return <div>Loading...</div>
 
@@ -206,20 +280,26 @@ export default function Transaction() {
             <Topbar pageName='Transaction' userFirstInitial={currentUser.displayName?.charAt(0)} />             
             
             <span className="w-full h-px bg-gray-200 block my-5"></span>
-            <div className="flex items-center justify-between mb-2 mx-2 gap-1">
+            <div className="flex items-center mb-2 mx-2 gap-3">
               {/* Search transaction */}
-              <SearchTransaction onSearch={setSearchQuery} />
-              <button
-                className="cursor-pointer hover:bg-gray-100 hover:rounded-md p-2"
-                onClick={handleRefresh}
-                title="Refresh"
-              >
-                <FiRefreshCw className="transform hover:rotate-360 transition-transform duration-1000 ease-out"/>
-              </button>          
+              <SearchTransaction
+                setPaginationModel={setPaginationModel}
+                pageSize={paginationModel.pageSize}
+                page={paginationModel.page}
+                setLastDocumentIds={setLastDocumentIds}
+              />
+              <FilterTransaction
+                itemId={itemId}
+                setAddFilterToUI={setAddFilterToUI}
+                setPaginationModel={setPaginationModel}
+                setLastDocumentIds={setLastDocumentIds}
+                pageSize={paginationModel.pageSize}
+                page={paginationModel.page}
+              />
               <div className="flex items-center gap-3">
                 {/* Add transaction */}    
                 <button
-                  className="flex items-center gap-1 py-1 px-3 bg-black text-white rounded-md font-medium hover:opacity-80 transition cursor-pointer"
+                  className="flex items-center gap-1 py-1 px-3 bg-green-500 text-white rounded-md font-medium hover:opacity-80 transition cursor-pointer"
                   onClick={handleOpenAddModal}
                 >
                   <IoAddCircleSharp/>
@@ -229,51 +309,85 @@ export default function Transaction() {
                 <button
                   className="flex items-center gap-1 py-1 px-3 bg-red-600 text-white rounded-md font-medium hover:opacity-80 transition cursor-pointer"
                   onClick={handleDeleteBatchTransactions}
+                  disabled={isDeleting}
                 >
                   <IoAddCircleSharp />
                   <span>
-                    {selectedRowCount > 0 ? `Delete Selected (${selectedRowCount})` : 'Delete'}
+                    {
+                      isDeleting ? "Button is disabled" 
+                        : selectedRowCount > 0 ? `Delete Selected (${selectedRowCount})` : 'Delete'
+                    }
                   </span>
                 </button>
               </div>
             </div>
-
+            <div className="flex gap-2 mx-2 mb-2">
+              {addFilterToUI.map((filter) => {
+                let displayValue = displayFilterValue(filter);
+                // Generate random background color in HSL
+                const hue = Math.floor(Math.random() * 360);
+                const bgColor = `hsl(${hue}, 70%, 60%)`;
+                return (
+                  <div
+                    key={`${filter.type}-${displayValue}`}
+                    className="flex gap-7 font-semibold py-1 px-2 text-white w-fit rounded hover:opacity-90 cursor-pointer"
+                    onClick={() => handleDeleteFilters(filter)}
+                    style={{ backgroundColor: bgColor}}
+                  >
+                    <span>{displayValue}</span>
+                    <div>
+                      X
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
             <section>
-                <div className="w-full">
-                  <DataGrid
-                    rows={filteredTransactions}
-                    columns={columns}
-                    disableColumnResize={true}
-                    checkboxSelection
-                    onRowSelectionModelChange={handleRowSelectionChange}
-                    disableRowSelectionOnClick
-                    loading={isPending || loadingTransactions}
-                    initialState={{
-                      pagination: { paginationModel: { pageSize: 10 } },
-                    }}
-                    pageSizeOptions={[5, 10, 25, { value: -1, label: 'All' }]}
-                />
+              <div className="w-full">
+                <DataGrid
+                  rows={transactions}
+                  columns={columns}
+                  disableColumnResize={true}
+                  //checkboxSelection
+                  paginationMode="server"
+                  paginationModel={paginationModel}
+                  rowCount={data?.totalCount}
+                  disableRowSelectionOnClick
+                  loading={loadingTransactions}
+                  pageSizeOptions={[5, 10, 25]}
+                  onPaginationModelChange={handlePaginationModelChange}
+                  onRowSelectionModelChange={handleRowSelectionChange}
+                  rowSelectionModel={rowSelectionModel}
+                  hideFooterPagination={loadingTransactions}
+              />
               </div>
               {isEditModalOpen && 
-                <AddAndEditTransactionModal
-                  open={isEditModalOpen}
-                  onClose={handleCloseEditModal}
-                  transaction={selectedTx}
-                  itemId={itemId}
-                  mode="Edit"
-                />
+              <AddAndEditTransactionModal
+                open={isEditModalOpen}
+                onClose={handleCloseEditModal}
+                setPaginationModel={setPaginationModel}
+                setLastDocumentIds={setLastDocumentIds}
+                transaction={selectedTx}
+                itemId={itemId}
+                paginationModel={paginationModel}
+                lastDocumentIds={lastDocumentIds}
+                mode="Edit"
+              />
               }
               {isAddModalOpen && 
-                <AddAndEditTransactionModal
-                  open={isAddModalOpen}
-                  onClose={handleCloseAddModal}
-                  itemId={itemId}
-                  mode="Add"
-                />
+              <AddAndEditTransactionModal
+                open={isAddModalOpen}
+                onClose={handleCloseAddModal}
+                setPaginationModel={setPaginationModel}
+                setLastDocumentIds={setLastDocumentIds}
+                itemId={itemId}
+                mode="Add"
+              />
               }
             </section>
           </div>
         </div>
+
       </>
     )
 }

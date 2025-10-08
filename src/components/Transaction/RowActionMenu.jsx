@@ -2,11 +2,11 @@ import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { GridMoreVertIcon } from "@mui/x-data-grid";
-import React, { useState } from "react";
+import { useState } from "react";
 import { MdDeleteForever, MdEdit } from "react-icons/md";
 
 export default function RowActionMenu({
-    row, handleOpenEditModal, handleDeleteTransaction
+    row, handleOpenEditModal, handleDeleteTransaction, isDeleting
 }) {
     const [anchorEl, setAnchorEl] = useState(null); // reference to HTML elemnt --- IconButton
     const open = Boolean(anchorEl);
@@ -16,7 +16,7 @@ export default function RowActionMenu({
         setAnchorEl(e.currentTarget);
     }
 
-    const handleClose = (e) => {
+    const handleClose = () => {
         setAnchorEl(null);
     }
 
@@ -62,6 +62,7 @@ export default function RowActionMenu({
                 </MenuItem>
                 <MenuItem
                     onClick={handleDelete}
+                    disabled={isDeleting}
                     sx={{
                         '&:hover': {
                             backgroundColor: "black",

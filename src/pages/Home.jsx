@@ -1,7 +1,5 @@
-import React from "react"
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar/Navbar'
-import Logo from '../assets/Logo.png'
 import Finance from '../assets/Finance.png'
 import Footer from '../components/Footer'
 

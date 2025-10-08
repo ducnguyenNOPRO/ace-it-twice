@@ -1,4 +1,10 @@
-ul li{
+.sidebarList {
+    display: flexbox;
+    flex-direction: column;
+    margin-top: 40px;
+    padding: 0;
+}
+.sidebarList li{
     width: 100%;
     display: flex;
     align-items: center;
@@ -8,7 +14,7 @@ ul li{
     margin-top: 5px;
 }
 
-ul li:hover, ul li button:hover {
+.sidebarList li:hover, .sidebarList li button:hover {
     background-color: #ffd966;
     border-radius: 5%;
     color: white;
@@ -16,7 +22,7 @@ ul li:hover, ul li button:hover {
 }
 
 @media (max-width: 640px){
-    ul li{
+    .sidebarList li{
         font-size: 0.9rem;
         padding: 0 0 0 10px;
     }

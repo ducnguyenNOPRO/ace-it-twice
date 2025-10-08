@@ -1,9 +1,8 @@
 import { format } from "date-fns";
 import prettyMapCategory from "../constants/prettyMapCategory";
 export const getMonthlySpendingData = (transactions) =>  {
-    // Positive amount = money out, spending
-    // Negative amound = money in, income, refund, etc.
-    const spendingOnly = transactions.filter(tx => tx.amount > 0)  
+    if (!transactions) return;
+    const spendingOnly = transactions.filter(tx => tx.amount < 0)  
     const monthlyTotals = {};   // { {month1: totalAmount}, {month2: totalAmount}}
 
     spendingOnly.forEach(tx => {
@@ -19,9 +18,8 @@ export const getMonthlySpendingData = (transactions) =>  {
 }
 
 export const getSpendingDataByCategory = (transactions) => {
-    // Positive amount = money out, spending
-    // Negative amound = money in, income, refund, etc.
-    const spendingOnly = transactions.filter(tx => tx.amount > 0)  
+    if (!transactions) return;
+    const spendingOnly = transactions.filter(tx => tx.amount < 0)  
     const categoriesTotal = {};  // <String: {total, icon, color}>
     let totalSpending = 0;
 
@@ -45,12 +43,14 @@ export const getSpendingDataByCategory = (transactions) => {
         totalSpending += tx.amount
     })
 
+    totalSpending = totalSpending * -1;
+
     const sorted = Object.entries(categoriesTotal)    // [[category1, {total, icon, color}], ...]
         .sort((a, b) => b[1].total - a[1].total)
         .map(([category, data]) => ({
             category,
-            total: data.total.toFixed(0),
-            percent: Math.round((data.total / totalSpending) * 100),
+            total: data.total.toFixed(0) * -1,
+            percent: Math.round((data.total / totalSpending) * 100) * -1,
             icon: data.icon,
             color: data.color
     }));

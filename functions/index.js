@@ -3,7 +3,8 @@ const admin = require("firebase-admin");
 const {FieldValue} = require("firebase-admin/firestore")
 const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
 const prettyMapCategory = require('./constants/prettyMapCategory');
-const { error } = require("firebase-functions/logger");
+const { validateFilters } = require('./utils/validateFilters')
+const { format } = require("date-fns");
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -187,6 +188,8 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
 
   const uid = request.auth.uid;
   const itemId = request.data.itemId
+  console.log(itemId);
+  console.log(uid);
 
   if (!itemId) throw new HttpsError("invalid-argument", "Missing itemId");
 
@@ -208,11 +211,10 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
 
     const now = new Date();   // YYYY-MM-DD T HH:MM::SS
     const aYearAgo = new Date();
-    aYearAgo.setMonth(now.getMonth() - 12);
+    aYearAgo.setFullYear(now.getFullYear() - 1);
 
     // Format as YYYY-MM-DD if needed (depends on your DB)
     const startDate = aYearAgo.toISOString().split("T")[0]; // e.g., "2025-01-30"
-    console.log(startDate)
     const endDate = now.toISOString().split("T")[0]; // e.g., "2025-07-30"
 
     // Call Plaid to get Accounts
@@ -236,23 +238,26 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
       const accountInfo = accountsMap[tx.account_id];
       return {
         transaction_id: tx.transaction_id,
-        name: tx.name,
         merchant_name: tx.merchant_name || tx.name,
-        amount: tx.amount,
+        merchant_name_lower: tx.merchant_name?.toLowerCase() || tx.name?.toLowerCase(),
+        amount: tx.amount * -1,
+        amount_filter: tx.amount < 0 ? tx.amount * -1 : tx.amount,
         iso_currency_code: tx.iso_currency_code,
         date: tx.date,
         //datetime: tx.datetime,
         //authorized_date: tx.authorized_date,
         //authorized_datetime: tx.authorized_datetime,
-        location: tx.location,
-        logo_url: tx.logo_url,
+        // location: tx.location,
+        // logo_url: tx.logo_url,
         pending: tx.pending,
-        category: prettyMapCategory[tx.personal_finance_category.primary],
+        category: prettyMapCategory[tx.personal_finance_category.primary] || "Other",
+        category_lower: prettyMapCategory[tx.personal_finance_category.primary]?.toLowerCase() || "Other",
         account_id: tx.account_id,
         notes: '',
 
         // merged account info:
         account_name: accountInfo.name || "Unknown",
+        account_name_lower: accountInfo.name?.toLowerCase() || "Unknown",
         account_mask: accountInfo.mask || "****",
       }
     })
@@ -276,20 +281,38 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
     };
   }
   catch (error) {
+    console.error(error);
     throw new HttpsError("internal", "Fail to fetch transactions.");
   }
 })
 
-exports.getTransactions = onCall(async (request) => {
+// Cursor based Pagination
+exports.getTransactionsFilteredPaginated = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("Unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
-  const itemId = request.data.itemId;
+  const { itemId, pagination, filters } = request.data;
+  const { page = 0, pageSize = 5, lastDocumentId = null } = pagination;
 
   if (!itemId) {
     throw new HttpsError("invalid-argument", "Missing Item Id");
   }
+
+  if (pageSize < 1 || pageSize > 100) {
+    throw new HttpsError("invalid-argument", "Out of bound page size");
+  }
+
+  const {
+    name,
+    account,
+    startDate,
+    endDate,
+    category,
+    minAmount,
+    maxAmount
+  } = validateFilters(filters);
+
   try {
     const transactionsRef = admin.firestore()
       .collection('users')
@@ -298,25 +321,167 @@ exports.getTransactions = onCall(async (request) => {
       .doc(itemId)
       .collection('transactions');
     
-    const snapshot = await transactionsRef
-      .orderBy("date", "desc")
-      .get();
+    let query = transactionsRef.orderBy("date", "desc")
+    if (name) {  // merchant name 
+      query = query
+        .where("merchant_name_lower", ">=", name) // use third party app for case sensitive search
+        .where("merchant_name_lower", "<=", name + "\uf8ff");
+    }
+    if (account) {
+      query = query.where("account_name", "==", account)
+    }
+    if (startDate) {
+      query = query.where("date", ">=", startDate)
+    }
+    if (endDate) {
+      query = query.where("date", "<=", endDate)
+    }
+    if (category) {
+      query = query.where("category", "==", category)
+    }
+    if (minAmount !== null && minAmount !== undefined) {
+      query = query.where("amount_filter", ">=", minAmount)
+    }
+    if (maxAmount !== null && maxAmount !== undefined) {
+      query = query.where("amount_filter", "<=", maxAmount)
+    }
 
+    // Use count() aggregation (Admin SDK doesn’t have getCountFromServer)
+    const totalCountSnapshot = await query.count().get();
+    const totalDocs = totalCountSnapshot.data().count;
+
+    // Apply pagination
+    if (lastDocumentId) {
+      const lastDocRef = transactionsRef.doc(lastDocumentId);
+      const lastDocSnapshot = await lastDocRef.get();
+
+      if (!lastDocSnapshot.exists) {
+        throw new HttpsError("invalid-argument", "Invalid cursor document");
+      }
+
+      query = query.startAfter(lastDocSnapshot);
+    }
+
+    const snapshot = await query.limit(pageSize).get();
+
+    const hasNextPage = ((page * pageSize) + snapshot.docs.length) < totalDocs;
     const transactions = snapshot.docs.map(doc => ({
       id: doc.id,
         ...doc.data()
     }))
 
+    const nextCursorId = transactions.length > 0 ? transactions[transactions.length - 1].id : null;
+
     return {
       success: true,
       message: "Transactions fetched DB",
-      count: transactions.length,
-      transactions: transactions
+      totalCount: totalDocs,
+      transactions: transactions,
+      pagination: {
+        page,
+        pageSize,
+        hasNextPage,
+        nextCursor: hasNextPage ? nextCursorId : null,
+        count: transactions.length,
+        totalPages: Math.ceil(totalDocs / pageSize)
+      }
     };
   } catch (error) {
+    console.log(error);
     throw new HttpsError("internal", "Fail to get transactions.");
   }
 })
+
+// Get recent transaction for Dashboard Page
+exports.getRecentTransactions = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+  const { itemId, limit} = request.data;
+
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
+  }
+
+  try {
+    const transactionsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection('transactions');
+    
+    const query = transactionsRef.orderBy("date", "desc").limit(limit);
+    const snapshot = await query.get();
+
+    const transactions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+
+    return {
+      success: true,
+      message: "Recent transactions fetched succesfully",
+      totalTransactions: transactions.length,
+      transactions: transactions,
+    }
+  } catch (error) {
+    console.log(error);
+    throw new HttpsError("internal", "Fail to get recent transactions.");
+  }
+})
+
+// Get monthly transaction for Dashboard Page
+exports.getMonthlyTransactions = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+  const {itemId} = request.data;
+
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
+  }
+
+  try {
+    const transactionsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection('transactions');
+    
+    // Current month
+    const now = new Date();
+    const startDate = format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
+    const endDate = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
+
+    console.log(startDate, endDate)
+    
+    const query = transactionsRef
+      .where("date", ">=", startDate)
+      .where("date", "<=", endDate)
+      .orderBy("date", "desc");
+    const snapshot = await query.get();
+
+    const transactions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+
+    return {
+      success: true,
+      message: "Monthly transactions fetched succesfully",
+      totalTransactions: transactions.length,
+      transactions: transactions,
+    }
+  } catch (error) {
+    console.log(error);
+    throw new HttpsError("internal", "Fail to get monthly transactions.");
+  }
+})
+
 
 /**** 
 exports.plaidWebhook = onRequest(async (req, res) => {
@@ -474,7 +639,7 @@ exports.addTransaction = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const txData = request.data.transaction;
+  const transactionData = request.data.transaction;
   const itemId = request.data.itemId;
 
   console.log("ItemId:", itemId);
@@ -482,12 +647,12 @@ exports.addTransaction = onCall(async (request) => {
   if (!itemId) {
     throw new HttpsError("invalid-argument", "Missing Item Id");
   }
-  if (!txData) {
+  if (!transactionData) {
     throw new HttpsError("invalid-argument", "Missing transaction data");
   }
 
   try {
-    // Get the Bank document using itemId
+    // Create a new doc ref with an auto generated ID
     const newTxDocRef = admin.firestore()
       .collection('users')
       .doc(uid)
@@ -497,11 +662,11 @@ exports.addTransaction = onCall(async (request) => {
       .doc();
 
     const newTxDocData = {
-      ...txData,
+      ...transactionData,
       transaction_id: newTxDocRef.id
     }
 
-    // Save the transaction
+    // Add the transaction
     await newTxDocRef.set(newTxDocData);
     return {success: true, message: `Transaction added successfully`}
   } catch (error) {
@@ -515,14 +680,14 @@ exports.editTransactionById= onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const txId = request.data.transactionId;  // Transaction Id
-  const txData = request.data.transaction;
+  const transactionToUpdateId = request.data.transactionToUpdateId;  // Transaction Id
+  const transactionData = request.data.transactionData;
   const itemId = request.data.itemId
 
-  if (!txId) {
+  if (!transactionToUpdateId) {
     throw new HttpsError("invalid-argument", "Missing transaction Id");
   }
-  if (!txData) {
+  if (!transactionData) {
     throw new HttpsError("invalid-argument", "Missing transaction data");
   }
   if (!itemId) {
@@ -531,29 +696,22 @@ exports.editTransactionById= onCall(async (request) => {
 
   try {
     // Get the Bank document using itemId
-    const txDocRef = admin.firestore()
+    const transactionDocRef = admin.firestore()
       .collection('users')
       .doc(uid)
       .collection('plaid')
       .doc(itemId)
       .collection("transactions")
-      .doc(txId);
-
-    // Get transaction doc with Id
-    const txDoc = await txDocRef.get();
-
-    // Prevent editing non-existing document
-    if (!txDoc.exists) {
-      throw new HttpsError("not-found", "Transaction document not found.");
-    }
-    const newTxDocData = {
-      ...txData
+      .doc(transactionToUpdateId);
+    
+    const newTransactionData = {
+      ...transactionData
     }
 
-    // Save the transaction
-    await txDocRef.set(newTxDocData, {merge: true});
+    await transactionDocRef.update(newTransactionData);
     return {success: true, message: `Transaction updated successfully`}
   } catch (error) {
+    console.error(error);
     throw new HttpsError("internal", "Fail to update transaction")
   }
 })
@@ -563,10 +721,10 @@ exports.deleteTransactionById= onCall(async (request) => {
     throw new HttpsError("Unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
-  const txId = request.data.transactionId;  // Transaction Id
+  const transactionToDeleteId = request.data.transactionToDeleteId;  // Transaction Id
   const itemId = request.data.itemId
 
-  if (!txId) {
+  if (!transactionToDeleteId) {
     throw new HttpsError("invalid-argument", "Missing transaction Id");
   }
   if (!itemId) {
@@ -581,15 +739,7 @@ exports.deleteTransactionById= onCall(async (request) => {
       .collection('plaid')
       .doc(itemId)
       .collection("transactions")
-      .doc(txId);
-
-    // Get transaction doc with Id
-    const txDoc = await txDocRef.get();
-
-    // Prevent deleting non-existing document
-    if (!txDoc.exists) {
-      throw new HttpsError("not-found", "Transaction document not found.");
-    }
+      .doc(transactionToDeleteId);
 
     // Save the transaction
     await txDocRef.delete();
@@ -605,11 +755,11 @@ exports.deleteBatchTransaction = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const txsToDelete = request.data.selectedTransactionIds;  // Array
+  const transactionsToDelete = request.data.selectedTransactionIds;  // Array
   const itemId = request.data.itemId
 
-  if (!txsToDelete) {
-    throw new HttpsError("invalid-argument", "Missing transactions");
+  if (!transactionsToDelete) {
+    throw new HttpsError("invalid-argument", "Missing transactions to delete");
   }
   if (!itemId) {
     throw new HttpsError("invalid-argument", "Missing itemId");
@@ -617,7 +767,7 @@ exports.deleteBatchTransaction = onCall(async (request) => {
 
   const batch = admin.firestore().batch(); // used to write multiple documents
   try {
-    // Get the Bank document using itemId
+    
     const txCollectionRef = admin.firestore()
       .collection('users')
       .doc(uid)
@@ -625,15 +775,16 @@ exports.deleteBatchTransaction = onCall(async (request) => {
       .doc(itemId)
       .collection("transactions")
     
-    txsToDelete.forEach(txId => {
+    transactionsToDelete.forEach(txId => {
       const txDocRef = txCollectionRef.doc(txId);
       batch.delete(txDocRef);
     })
 
     await batch.commit();
 
-    return { success: true, message: `Successfully deleted ${txsToDelete.length} transactions` }
+    return { success: true, message: `Successfully deleted ${transactionsToDelete.length} transactions` }
   } catch (error) {
+    console.error(error);
     throw new HttpsError("internal", "Fail to delete batch transactions")
   }
 })

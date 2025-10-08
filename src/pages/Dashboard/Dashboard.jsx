@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useMemo } from 'react'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Topbar from '../../components/Topbar'
 import Card from '../../components/Dashboard/Card'
@@ -9,32 +9,38 @@ import { useAuth } from '../../contexts/authContext'
 import MonthlySpending from '../../components/Dashboard/MontlySpending'
 import { getMonthlySpendingData, getSpendingDataByCategory } from '../../util/spendingData'
 import { useQuery } from '@tanstack/react-query'
-import { createTransactionsQueryOptions, createAccountsQueryOptions} from '../../util/createQueryOptions'
+import { createRecentTransactionsQueryOptions, createAccountsQueryOptions} from '../../util/createQueryOptions'
 import { useItemId } from '../../hooks/useItemId'
 
 export default function Dashboard() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { currentUser } = useAuth();
   const { itemId } = useItemId(currentUser.uid);
-  const { data: transactions, isLoading: loadingTxs } = useQuery(
-    createTransactionsQueryOptions({ itemId },
+  const { data, isLoading: loadingTransactions } = useQuery(
+    createRecentTransactionsQueryOptions(
+      { itemId },
       {
         staleTime: Infinity,
         refetchOnWindowFocus: false,
-        refetchOnReconnect: false
-      }));
-  const { data: accounts, isLoading: loadingAccs } = useQuery(
+        refetchOnReconnect: false,
+        enabled: !!itemId
+      }
+    ))
+  const { data: accounts, isLoading: loadingAccounts } = useQuery(
     createAccountsQueryOptions({ itemId },
       {
         staleTime: Infinity,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false
       }))
-  if (loadingTxs || loadingAccs) {
-    return <div>Loading...</div>
-  }
-  const monthlySpendingData = getMonthlySpendingData(transactions);  //return { "MMM YYYY", totalSpending: int}
-  const categorySpendingData = getSpendingDataByCategory(transactions);  //return {totalSpending: int, sortedCategories[{total, icon, color}]}
+
+  const transactions = data?.transactions ?? [];
+
+  //return { "MMM YYYY", totalSpending: int}
+  const monthlySpendingData = useMemo(() => getMonthlySpendingData(transactions), [transactions]);
+
+    //return {totalSpending: int, sortedCategories[{total, icon, color}]}
+  const categorySpendingData = useMemo(() => getSpendingDataByCategory(transactions), [transactions]);
 
   const handlePrev = () => {
     setCurrentIndex(prev => (prev === 0 ? accounts.length - 1 : prev - 1));
@@ -44,6 +50,13 @@ export default function Dashboard() {
     setCurrentIndex(prev => (prev === accounts.length - 1 ? 0 : prev + 1));
   }
 
+  console.log("transactions", transactions);
+  console.log("monthlySpendingData", monthlySpendingData);
+  console.log("categorySpendingData", categorySpendingData);
+
+  if (loadingTransactions || loadingAccounts) {
+    return <div>Loading...</div>
+  }
   return (
     <>
       <div className="flex h-screen text-gray-500">
@@ -64,7 +77,7 @@ export default function Dashboard() {
                   <h1 className="mb-3 font-semibold text-xl text-black tracking-wider">Card</h1>
             
                 {/* Cards */}
-                {loadingAccs
+                {loadingAccounts
                   ? <p>Loading Bank Accounts</p>
                   :
                   <div className="flex gap-x-1">
@@ -97,13 +110,19 @@ export default function Dashboard() {
 
             <section className="flex flex-wrap gap-6 w-full p-5">
               {/* Transaction History */}
-              <div className="w-fit lg:w-1/2 border border-gray-200 rounded-lg shadow-2xl p-6"> 
-                <TransactionHistory transactions={transactions?.slice(0,3)} />  
-              </div>
-              {/* Top catogories */}
-              <div className="grow md:w-fit border-gray-200 rounded-lg shadow-2xl p-6">
-                <TopCategories data={categorySpendingData} />
-              </div>
+              {!loadingTransactions &&
+                <>
+                  <div className="w-fit lg:w-1/2 border border-gray-200 rounded-lg shadow-2xl p-6"> 
+                    <TransactionHistory transactions={transactions?.slice(0,3)} />  
+                  </div>
+
+                  {/* Top catogories */}
+                  <div className="grow md:w-fit border-gray-200 rounded-lg shadow-2xl p-6">
+                    <TopCategories data={categorySpendingData} />
+                  </div>
+                </>
+              }
+              
             </section>
 
           </main>
