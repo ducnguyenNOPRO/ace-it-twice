@@ -3,9 +3,9 @@ import { MdArrowOutward } from "react-icons/md";
 import { Link } from 'react-router-dom';
 import prettyMapCategory from '../constants/prettyMapCategory';
 
-export default function TransactionHistory({ transactions }) {
-    if (transactions.length === 0) {
-        return <div>No Transactions to Load.</div>
+export default function TransactionHistory({ recentTransactions }) {
+    if (recentTransactions.length == 0) {
+        return <div>No Recent Transactions.</div>
     }
     return (
         <>
@@ -26,7 +26,7 @@ export default function TransactionHistory({ transactions }) {
                 <div className="font-semibold text-gray-400">Category</div>
                 <div className="font-semibold text-gray-400">Amount</div>
                 {/* Row */}
-                {transactions.map((tx) => (
+                {recentTransactions.map((tx) => (
                     <React.Fragment key={tx.transaction_id}>
                         {/* Merchant Name: allow wrapping */}
                         <div className="flex items-center gap-1.5 overflow-hidden">

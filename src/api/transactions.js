@@ -38,9 +38,9 @@ export async function getRecentTransactions(params = {}) {
 export async function getMonthlyTransactions(params = {}) {
     if (!params.itemId) throw new Error("Frontend: Missing itemId");
 
-    const getMonthlyTransacitons = httpsCallable(functions, "getMonthlyTransacitons");
+    const getMonthlyTransactions = httpsCallable(functions, "getMonthlyTransactions");
     try {
-        const { data } = await getMonthlyTransacitons(params);
+        const { data } = await getMonthlyTransactions(params);
         return data;
     } catch (error) {
         console.error('Firebase function error:', error);

@@ -10,7 +10,14 @@ import {
     Tooltip
 } from "recharts";
 
-export default function MonthlySpending({ data }) {
+export default function MonthlySpending({ monthlySpendingData }) {
+    if (monthlySpendingData.length == 0) {
+        return (
+            <div className="text-lg ">
+                No Monthly Spending Data
+            </div>
+        )
+    }
 
     return (
         <>
@@ -18,10 +25,10 @@ export default function MonthlySpending({ data }) {
                 width="100%"
                 height="90%"
             >
-                <LineChart data={data} margin={{ top: -10, right: 10, left: 0, bottom: 0 }}>
+                <LineChart data={monthlySpendingData} margin={{ top: -10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal="true" vertical=""/>
                     <XAxis
-                        dataKey="month"
+                        dataKey="date"
                         padding={{ left: 40, right: 40 }}
                     />
                     <YAxis

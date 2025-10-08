@@ -424,7 +424,7 @@ exports.getRecentTransactions = onCall(async (request) => {
       success: true,
       message: "Recent transactions fetched succesfully",
       totalTransactions: transactions.length,
-      transactions: transactions,
+      recentTransactions: transactions,
     }
   } catch (error) {
     console.log(error);
@@ -454,7 +454,7 @@ exports.getMonthlyTransactions = onCall(async (request) => {
     
     // Current month
     const now = new Date();
-    const startDate = format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
+    const startDate = format(new Date(now.getFullYear(), now.getMonth() - 3, 1), "yyyy-MM-dd");
     const endDate = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
 
     console.log(startDate, endDate)
@@ -474,7 +474,7 @@ exports.getMonthlyTransactions = onCall(async (request) => {
       success: true,
       message: "Monthly transactions fetched succesfully",
       totalTransactions: transactions.length,
-      transactions: transactions,
+      monthlyTransactions: transactions,
     }
   } catch (error) {
     console.log(error);

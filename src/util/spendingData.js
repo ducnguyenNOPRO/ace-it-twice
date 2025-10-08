@@ -1,24 +1,24 @@
 import { format } from "date-fns";
 import prettyMapCategory from "../constants/prettyMapCategory";
 export const getMonthlySpendingData = (transactions) =>  {
-    if (!transactions) return;
+    if (!transactions || transactions.length == 0) return [];
     const spendingOnly = transactions.filter(tx => tx.amount < 0)  
-    const monthlyTotals = {};   // { {month1: totalAmount}, {month2: totalAmount}}
+    const monthlyTotals = {};   // { {date: MMM d, total: string} }
 
     spendingOnly.forEach(tx => {
-        const month = format(new Date(tx.date), "MMM yyyy");   // "Jul 2025"
-        monthlyTotals[month] = (monthlyTotals[month] || 0) + tx.amount;
+        const date = format(new Date(tx.date), "MMM d");   // "Oct 1"
+        monthlyTotals[date] = (monthlyTotals[date] || 0) + tx.amount;
     });
 
     const sorted = Object.entries(monthlyTotals)
         .sort(([a], [b]) => new Date(a) - new Date(b))
-        .map(([month, total]) => ({ month, total: total.toFixed(0)}));
-    
+        .map(([date, total]) => ({ date, total: Math.round(total) * -1}));
     return sorted;
 }
 
 export const getSpendingDataByCategory = (transactions) => {
-    if (!transactions) return;
+    if (!transactions || transactions.length == 0) return [];
+
     const spendingOnly = transactions.filter(tx => tx.amount < 0)  
     const categoriesTotal = {};  // <String: {total, icon, color}>
     let totalSpending = 0;
