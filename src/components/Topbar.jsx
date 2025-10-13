@@ -5,7 +5,7 @@ import { IoSearchSharp } from "react-icons/io5";
 export default function Topbar({pageName, userFirstInitial}) {
     return (
         <>
-            <div className="flex justify-between items-center pt-5 px-10 h-20">
+            <div className="flex justify-between items-center pt-5 px-10 mb-5 h-20 border-b border-gray-300">
                 <div>
                     <h1 className="text-2xl text-black font-medium">
                         {pageName}

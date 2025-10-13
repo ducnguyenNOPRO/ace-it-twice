@@ -57,3 +57,13 @@ export function createAccountsQueryOptions(params = {}, options = {}) {
         queryFn: () => getAccounts(params),
     })
 }
+
+export function createGoalsQueryOptions(
+    params = {}, options = {}
+) { 
+    return queryOptions({
+        ...options, 
+        queryKey: ["goals", params],
+        queryFn: () => getTransactionsFilteredPaginated(),
+    })
+}

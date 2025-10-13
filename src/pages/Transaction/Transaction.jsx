@@ -279,7 +279,6 @@ export default function Transaction() {
             {/* Topbar*/}
             <Topbar pageName='Transaction' userFirstInitial={currentUser.displayName?.charAt(0)} />             
             
-            <span className="w-full h-px bg-gray-200 block my-5"></span>
             <div className="flex items-center mb-2 mx-2 gap-3">
               {/* Search transaction */}
               <SearchTransaction

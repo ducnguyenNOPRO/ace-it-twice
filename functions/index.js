@@ -642,8 +642,6 @@ exports.addTransaction = onCall(async (request) => {
   const transactionData = request.data.transaction;
   const itemId = request.data.itemId;
 
-  console.log("ItemId:", itemId);
-
   if (!itemId) {
     throw new HttpsError("invalid-argument", "Missing Item Id");
   }
@@ -703,12 +701,8 @@ exports.editTransactionById= onCall(async (request) => {
       .doc(itemId)
       .collection("transactions")
       .doc(transactionToUpdateId);
-    
-    const newTransactionData = {
-      ...transactionData
-    }
 
-    await transactionDocRef.update(newTransactionData);
+    await transactionDocRef.update(transactionData);
     return {success: true, message: `Transaction updated successfully`}
   } catch (error) {
     console.error(error);
@@ -786,5 +780,103 @@ exports.deleteBatchTransaction = onCall(async (request) => {
   } catch (error) {
     console.error(error);
     throw new HttpsError("internal", "Fail to delete batch transactions")
+  }
+})
+
+exports.getGoals = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+
+  try {
+    const goalsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('goals');
+    
+    const query = goalsRef.orderBy("progress", "desc");
+    const snapshot = await query.get();
+
+    const goals = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+
+    return {
+      success: true,
+      message: "Goals fetched succesfully",
+      totalGoals: goals.length,
+      goals: goals,
+    }
+  } catch (error) {
+    console.log(error);
+    throw new HttpsError("internal", "Fail to get recent transactions.");
+  }
+})
+
+exports.addGoal = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const goalData = request.data.goalData;
+
+  if (!goalData) {
+    throw new HttpsError("invalid-argument", "Missing goal data");
+  }
+
+  try {
+    // Create a new doc ref with an auto generated ID
+    const newGoalDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection("goals")
+      .doc();
+
+    const newGoalDocData = {
+      ...goalData,
+      createdAt:FieldValue.serverTimestamp(),
+      goal_id: newGoalDocRef.id,
+    }
+
+    // Add the transaction
+    await newGoalDocRef.set(newGoalDocData);
+    return {success: true, message: `Goal added successfully`}
+  } catch (error) {
+    throw new HttpsError("internal", "Fail to add transaction")
+  }
+})
+
+exports.editGoalById= onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const goalToUpdateId = request.data.goalToUpdateId;  // Transaction Id
+  const goalData = request.data.goalData;
+
+  if (!goalToUpdateId) {
+    throw new HttpsError("invalid-argument", "Missing goal Id");
+  }
+  if (!goalData) {
+    throw new HttpsError("invalid-argument", "Missing goal data");
+  }
+
+  try {
+    // Get the Bank document using itemId
+    const goalDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection("goals")
+      .doc(goalToUpdateId);
+
+    await goalDocRef.update(goalData);
+    return {success: true, message: `Goal updated successfully`}
+  } catch (error) {
+    console.error(error);
+    throw new HttpsError("internal", "Fail to update goal")
   }
 })
