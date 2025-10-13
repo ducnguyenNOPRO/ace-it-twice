@@ -1,0 +1,168 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - heading "A" [level=1] [ref=e7]
+          - heading "ce It Twice" [level=1] [ref=e8]
+        - list [ref=e9]:
+          - link "Dashboard" [ref=e10] [cursor=pointer]:
+            - /url: /Dashboard
+            - listitem [ref=e11]:
+              - img [ref=e12]
+              - text: Dashboard
+          - link "Transaction" [ref=e15] [cursor=pointer]:
+            - /url: /Transaction
+            - listitem [ref=e16]:
+              - img [ref=e17]
+              - text: Transaction
+          - link "SpendingPlan" [ref=e19] [cursor=pointer]:
+            - /url: /Spending-plan
+            - listitem [ref=e20]:
+              - img [ref=e21]
+              - text: SpendingPlan
+          - link "Goal" [ref=e24] [cursor=pointer]:
+            - /url: /Goal
+            - listitem [ref=e25]:
+              - img [ref=e26]
+              - text: Goal
+        - list [ref=e31]:
+          - link "Setting" [ref=e32] [cursor=pointer]:
+            - /url: /Setting
+            - listitem [ref=e33]:
+              - img [ref=e34]
+              - text: Setting
+          - listitem [ref=e37]:
+            - img [ref=e38]
+            - text: Help
+          - listitem [ref=e41]:
+            - img [ref=e42]
+            - text: Log out
+      - generic [ref=e45]:
+        - generic [ref=e46]:
+          - heading "Transaction" [level=1] [ref=e48]
+          - generic [ref=e49]:
+            - generic [ref=e50]:
+              - img [ref=e51]
+              - textbox [ref=e53]:
+                - /placeholder: Search
+            - generic [ref=e54]: D
+        - generic [ref=e56]:
+          - generic [ref=e57]:
+            - img [ref=e58]
+            - textbox "Search merchant name" [ref=e60]
+          - button "Filters" [ref=e62] [cursor=pointer]:
+            - img [ref=e64]
+            - generic [ref=e66]: Filters
+          - generic [ref=e67]:
+            - button "Add Transaction" [active] [ref=e68] [cursor=pointer]:
+              - img [ref=e69]
+              - generic [ref=e71]: Add Transaction
+            - button "Button is disabled" [disabled] [ref=e72] [cursor=pointer]:
+              - img [ref=e73]
+              - generic [ref=e75]: Button is disabled
+        - generic [ref=e78]:
+          - grid [ref=e79]:
+            - row "Account Date Merchant Category Amount Actions" [ref=e80]:
+              - columnheader "Account" [ref=e81] [cursor=pointer]:
+                - generic [ref=e83]: Account
+                - img [ref=e85]
+              - columnheader "Date" [ref=e87] [cursor=pointer]:
+                - generic [ref=e89]: Date
+                - img [ref=e91]
+              - columnheader "Merchant" [ref=e93] [cursor=pointer]:
+                - generic [ref=e95]: Merchant
+                - img [ref=e97]
+              - columnheader "Category" [ref=e99] [cursor=pointer]:
+                - generic [ref=e101]: Category
+                - img [ref=e103]
+              - columnheader "Amount" [ref=e105] [cursor=pointer]:
+                - generic [ref=e107]: Amount
+                - img [ref=e109]
+              - columnheader "Actions" [ref=e111]:
+                - generic [ref=e113]: Actions
+                - img [ref=e115]
+            - rowgroup [ref=e117]:
+              - row "Plaid Saving 2025-10-08 DoorDash Category Icon Food $100.00" [ref=e118]:
+                - gridcell "Plaid Saving" [ref=e119]
+                - gridcell "2025-10-08" [ref=e120]
+                - gridcell "DoorDash" [ref=e121]
+                - gridcell "Category Icon Food" [ref=e122]:
+                  - generic "Food" [ref=e124]:
+                    - img "Category Icon" [ref=e125]
+                    - generic [ref=e126]: Food
+                - gridcell "$100.00" [ref=e127]:
+                  - generic [ref=e128]: $100.00
+                - gridcell [ref=e129]:
+                  - button [ref=e130] [cursor=pointer]:
+                    - img [ref=e131]
+              - row "Plaid Checking 2025-09-29 Uber Category Icon Transportation $6.33" [ref=e133]:
+                - gridcell "Plaid Checking" [ref=e134]
+                - gridcell "2025-09-29" [ref=e135]
+                - gridcell "Uber" [ref=e136]
+                - gridcell "Category Icon Transportation" [ref=e137]:
+                  - generic "Transportation" [ref=e139]:
+                    - img "Category Icon" [ref=e140]
+                    - generic [ref=e141]: Transportation
+                - gridcell "$6.33" [ref=e142]:
+                  - generic [ref=e143]: $6.33
+                - gridcell [ref=e144]:
+                  - button [ref=e145] [cursor=pointer]:
+                    - img [ref=e146]
+              - row "Plaid Saving 2025-09-16 CREDIT CARD 3333 PAYMENT *// Category Icon Loans $25.00" [ref=e148]:
+                - gridcell "Plaid Saving" [ref=e149]
+                - gridcell "2025-09-16" [ref=e150]
+                - gridcell "CREDIT CARD 3333 PAYMENT *//" [ref=e151]
+                - gridcell "Category Icon Loans" [ref=e152]:
+                  - generic "Loans" [ref=e154]:
+                    - img "Category Icon" [ref=e155]
+                    - generic [ref=e156]: Loans
+                - gridcell "$25.00" [ref=e157]:
+                  - generic [ref=e158]: $25.00
+                - gridcell [ref=e159]:
+                  - button [ref=e160] [cursor=pointer]:
+                    - img [ref=e161]
+              - row "Plaid Checking 2025-09-16 Uber Category Icon Transportation $5.40" [ref=e163]:
+                - gridcell "Plaid Checking" [ref=e164]
+                - gridcell "2025-09-16" [ref=e165]
+                - gridcell "Uber" [ref=e166]
+                - gridcell "Category Icon Transportation" [ref=e167]:
+                  - generic "Transportation" [ref=e169]:
+                    - img "Category Icon" [ref=e170]
+                    - generic [ref=e171]: Transportation
+                - gridcell "$5.40" [ref=e172]:
+                  - generic [ref=e173]: $5.40
+                - gridcell [ref=e174]:
+                  - button [ref=e175] [cursor=pointer]:
+                    - img [ref=e176]
+              - row "Plaid Checking 2025-09-14 United Airlines Category Icon Travel $500.00" [ref=e178]:
+                - gridcell "Plaid Checking" [ref=e179]
+                - gridcell "2025-09-14" [ref=e180]
+                - gridcell "United Airlines" [ref=e181]
+                - gridcell "Category Icon Travel" [ref=e182]:
+                  - generic "Travel" [ref=e184]:
+                    - img "Category Icon" [ref=e185]
+                    - generic [ref=e186]: Travel
+                - gridcell "$500.00" [ref=e187]:
+                  - generic [ref=e188]: $500.00
+                - gridcell [ref=e189]:
+                  - button [ref=e190] [cursor=pointer]:
+                    - img [ref=e191]
+          - generic [ref=e195]:
+            - paragraph [ref=e196]: "Rows per page:"
+            - generic [ref=e197]:
+              - 'combobox "Rows per page: 5" [ref=e198] [cursor=pointer]': "5"
+              - textbox: "5"
+              - img
+            - paragraph [ref=e199]: 1–5 of 25
+            - generic [ref=e200]:
+              - button "Go to previous page" [disabled]:
+                - img
+              - button "Go to next page" [ref=e201] [cursor=pointer]:
+                - img [ref=e202]
+    - region "Notifications Alt+T"
+  - paragraph [ref=e204]: Running in emulator mode. Do not use with production credentials.
+```

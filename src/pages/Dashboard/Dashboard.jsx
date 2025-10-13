@@ -9,14 +9,14 @@ import { useAuth } from '../../contexts/authContext'
 import MonthlySpending from '../../components/Dashboard/MontlySpending'
 import { getMonthlySpendingData, getSpendingDataByCategory } from '../../util/spendingData'
 import { useQuery } from '@tanstack/react-query'
-import { createRecentTransactionsQueryOptions, createAccountsQueryOptions} from '../../util/createQueryOptions'
+import { createRecentTransactionsQueryOptions, createAccountsQueryOptions, createMonthlyTransactionsQueryOptions} from '../../util/createQueryOptions'
 import { useItemId } from '../../hooks/useItemId'
 
 export default function Dashboard() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { currentUser } = useAuth();
   const { itemId } = useItemId(currentUser.uid);
-  const { data, isLoading: loadingTransactions } = useQuery(
+  const { data: recentTransactionsResponse, isLoading: loadingTransactions } = useQuery(
     createRecentTransactionsQueryOptions(
       { itemId },
       {
@@ -26,6 +26,17 @@ export default function Dashboard() {
         enabled: !!itemId
       }
     ))
+  const { data: monthlyTransactionsResponse, isLoading: loadingMonthlyTransactions } = useQuery(
+    createMonthlyTransactionsQueryOptions(
+      { itemId},
+      {
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        enabled: !!itemId
+      }
+    )
+  )
   const { data: accounts, isLoading: loadingAccounts } = useQuery(
     createAccountsQueryOptions({ itemId },
       {
@@ -34,14 +45,14 @@ export default function Dashboard() {
         refetchOnReconnect: false
       }))
 
-  const transactions = data?.transactions ?? [];
+  const recentTransactions = recentTransactionsResponse?.recentTransactions ?? [];
+  const monthlyTransactions = monthlyTransactionsResponse?.monthlyTransactions ?? [];
 
   //return { "MMM YYYY", totalSpending: int}
-  const monthlySpendingData = useMemo(() => getMonthlySpendingData(transactions), [transactions]);
+  const monthlySpendingData = useMemo(() => getMonthlySpendingData(monthlyTransactions), [monthlyTransactions]);
 
-    //return {totalSpending: int, sortedCategories[{total, icon, color}]}
-  const categorySpendingData = useMemo(() => getSpendingDataByCategory(transactions), [transactions]);
-
+    //return {totalSpending: int, sortedCategories[{category, total, icon, color}]}
+  const categorySpendingData = useMemo(() => getSpendingDataByCategory(monthlyTransactions), [monthlyTransactions]);
   const handlePrev = () => {
     setCurrentIndex(prev => (prev === 0 ? accounts.length - 1 : prev - 1));
   }
@@ -50,11 +61,8 @@ export default function Dashboard() {
     setCurrentIndex(prev => (prev === accounts.length - 1 ? 0 : prev + 1));
   }
 
-  console.log("transactions", transactions);
-  console.log("monthlySpendingData", monthlySpendingData);
-  console.log("categorySpendingData", categorySpendingData);
-
-  if (loadingTransactions || loadingAccounts) {
+  console.log("MonthlySpending", monthlySpendingData)
+  if (loadingTransactions || loadingAccounts || loadingMonthlyTransactions) {
     return <div>Loading...</div>
   }
   return (
@@ -103,26 +111,24 @@ export default function Dashboard() {
               {/* Charts */}
               <section className="grow border border-gray-200 rounded-lg shadow-2xl py-6 px-5 h-70">
                 <h1 className="font-semibold text-xl text-black tracking-wider">Monthly Spending</h1>
-                <MonthlySpending data={monthlySpendingData} />
+                <MonthlySpending monthlySpendingData={monthlySpendingData} />
               </section>
             </div>
 
 
             <section className="flex flex-wrap gap-6 w-full p-5">
               {/* Transaction History */}
-              {!loadingTransactions &&
-                <>
-                  <div className="w-fit lg:w-1/2 border border-gray-200 rounded-lg shadow-2xl p-6"> 
-                    <TransactionHistory transactions={transactions?.slice(0,3)} />  
-                  </div>
+              <div className="w-fit lg:w-1/2 border border-gray-200 rounded-lg shadow-2xl p-6"> 
+                <TransactionHistory recentTransactions={recentTransactions} />  
+              </div>
 
-                  {/* Top catogories */}
-                  <div className="grow md:w-fit border-gray-200 rounded-lg shadow-2xl p-6">
-                    <TopCategories data={categorySpendingData} />
-                  </div>
-                </>
-              }
-              
+              {/* Top catogories */}
+              <div className="grow md:w-fit border-gray-200 rounded-lg shadow-2xl p-6">
+                        <h1 className="font-semibold text-xl text-black tracking-wider">Top categories</h1>
+                <TopCategories
+                  categorySpendingData={categorySpendingData}
+                />
+              </div>
             </section>
 
           </main>
