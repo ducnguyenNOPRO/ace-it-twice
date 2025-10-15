@@ -1,16 +1,31 @@
 import Sidebar from "../../components/Sidebar/Sidebar"
-import Topbar from "../../components/Topbar"
-import { useAuth } from "../../contexts/authContext";
+import Topbar from "../../components/Goal/Topbar"
 import Button from "@mui/material/Button";
-import GoalCard from "../../components/Goal/GoalCard";
 import { CiCirclePlus } from "react-icons/ci";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import AddGoalModal from "../../components/Goal/AddGoalModal";
+import BudgetTable from "../../components/Goal/BudgetTable";
+import { useAuth } from "../../contexts/authContext";
+import { useItemId } from '../../hooks/useItemId'
+import { createGoalsQueryOptions } from "../../util/createQueryOptions";
+import { useQuery } from "@tanstack/react-query";
+import { getTotalGoalsSaving } from "../../util/totalGoalsSavingdata";
 
 export default function Goal() {
-    const { currentUser } = useAuth();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const { currentUser } = useAuth();
+    const { itemId } = useItemId(currentUser.uid);
+    const { data: goalsListResponse } = useQuery(
+        createGoalsQueryOptions(
+            {
+                staleTime: Infinity,
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false
+            }));
 
+    const goalsList = goalsListResponse?.goals ?? [];
+
+    const totalGoalsSaving = useMemo(() => getTotalGoalsSaving(goalsList), [goalsList])
     const handleOpenAddModal = () => {
         setIsAddModalOpen(true);
     }
@@ -27,15 +42,22 @@ export default function Goal() {
                 {/* Page Content*/}
                 <div className="flex-1 overflow-auto">
                     {/* Topbar*/}
-                    <Topbar pageName='My Saving Goals' userFirstInitial={currentUser.displayName?.charAt(0)} />
+                    <Topbar />
         
                     {/* Main Content */}
                     <main className="text-black px-6 mb-10">
                         <div className="flex items-center gap-5">
                             <div className="relative border w-fit rounded-md border-blue-500 px-7 py-5 text-center">
-                                <p className="font-bold absolute -top-3.5 transform left-1/2 -translate-x-1/2 bg-white px-2">Summary</p>
                                 <p className="uppercase">Total Goal Savings</p>
-                                <p className="font-bold text-4xl">$23,5000</p>
+                                <p className="font-bold text-3xl">${totalGoalsSaving}</p>
+                            </div>
+                            <div className="border w-fit rounded-md border-blue-500 px-7 py-5 text-center">
+                                <p className="uppercase">Total Buget</p>
+                                <p className="font-bold text-3xl">$5000</p>
+                            </div>
+                             <div className="border w-fit rounded-md border-blue-500 px-7 py-5 text-center">
+                                <p>Total Spent</p>
+                                <p className="font-bold text-3xl">$4000</p>
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Button
@@ -56,17 +78,19 @@ export default function Goal() {
                                     </Button>
                                 </div>
                             </div>
-
                         </div>
+                        <BudgetTable
+                            openModel={handleOpenAddModal}
+                            goalsList={goalsList}
+                        />
 
-                        <section className="flex flex-wrap gap-x-5 gap-y-2 mt-5">
-                            {[0, 1, 2, 3, 4, 5].map((_, i) => (
-                                <GoalCard key={i} />
-                            ))}
-                        </section>
                     </main>
                     {isAddModalOpen && (
-                        <AddGoalModal open={isAddModalOpen} onClose={handleCloseAddModal} />
+                        <AddGoalModal
+                            open={isAddModalOpen}
+                            onClose={handleCloseAddModal}
+                            itemId={itemId}
+                        />
                     )}
                 </div>
             </div>

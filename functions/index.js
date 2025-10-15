@@ -835,10 +835,21 @@ exports.addGoal = onCall(async (request) => {
       .collection("goals")
       .doc();
 
+    const date = new Date().toISOString().split("T")[0];
+    
     const newGoalDocData = {
       ...goalData,
-      createdAt:FieldValue.serverTimestamp(),
+      start_date: new Date().toLocaleString('en-US', {
+        month: 'short',
+        year: 'numeric'
+      }),
+      contributions: [
+        {
+          date: date, amount: goalData.saved_amount    // first contribution is user's saved amount input
+        }
+      ],
       goal_id: newGoalDocRef.id,
+      progress: goalData.saved_amount / goalData.target_amount * 100
     }
 
     // Add the transaction
