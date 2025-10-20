@@ -1,9 +1,6 @@
-import { useState } from "react";
 import { FaArrowCircleLeft } from "react-icons/fa";
 import { FaArrowCircleRight } from "react-icons/fa";
-export default function Topbar() {
-    const [currentDate, setCurrentDate] = useState(new Date());
-
+export default function Topbar({currentDate, setCurrentDate}) {
     const formattedMonthYear = currentDate.toLocaleString('en-US', {
         month: 'short',
         year: 'numeric'
@@ -18,7 +15,7 @@ export default function Topbar() {
     };
     return (
         <>
-            <div className="flex items-center gap-x-10 pt-5 px-10 mb-5 h-20 border-b border-gray-300">
+            <div className="flex items-center gap-x-10 px-10 mb-5 h-12 border-b border-gray-300">
                 <h1 className="text-2xl text-black font-medium">
                     My Budget
                 </h1>

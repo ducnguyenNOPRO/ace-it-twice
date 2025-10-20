@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query"
 import { getTransactionsFilteredPaginated, getRecentTransactions, getMonthlyTransactions } from "../api/transactions"
 import { getAccounts } from "../api/accounts"
 import { getGoals } from "../api/goal";
+import { getBudgets } from "../api/budget";
 
 export function createTransactionsQueryOptions(
     params = {}, options = {}
@@ -66,5 +67,16 @@ export function createGoalsQueryOptions(
         ...options, 
         queryKey: ["goals", params],
         queryFn: () => getGoals(),
+    })
+}
+
+export function createBudgetsQueryOptions(
+    params = {}, options = {}
+) { 
+    const { startDate, endDate } = params;
+    return queryOptions({
+        ...options, 
+        queryKey: ["budgets", startDate, endDate],
+        queryFn: () => getBudgets(),
     })
 }

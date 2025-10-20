@@ -10,6 +10,7 @@ import { addGoal } from "../../api/goal"
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query"
 import { createAccountsQueryOptions } from "../../util/createQueryOptions";
+import formatDate from "../../util/formatDate"
 
 
 export default function AddGoalModal({ open, onClose, itemId }) {
@@ -75,18 +76,37 @@ export default function AddGoalModal({ open, onClose, itemId }) {
             return;
         }
 
+        // Get local date not UTC
+        const [year, month, day] = formValues.target_date.split("-");
+        const targetDate = new Date(year, month - 1, day); // months are 0-indexed
+        const targetDateFormatted = targetDate.toLocaleString("en-US", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+        });
+
+        // Get local date not UTC
+        const now = new Date();
+        const startDate = formatDate(now);
+        const startDateFormatted = now.toLocaleString("en-US", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+        });
+
         const targetAmount = Number(formValues.target_amount);
         const savedAmount = Number(formValues.saved_amount);
-        const targetDate = new Date(formValues.target_date).toLocaleString('en-US', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric'
-        })
+
         const goalToAdd = {
             ...formValues,
             target_amount: targetAmount,
             saved_amount: savedAmount,
-            target_date_formatted: targetDate,
+            start_date: startDate,
+            start_date_formatted: startDateFormatted,
+            target_date_formatted: targetDateFormatted,
+            contributions: [{
+                date: startDate, amount: savedAmount
+            }],
             iso_currency_code: "USD",
         }
 

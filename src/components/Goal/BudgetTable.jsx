@@ -1,42 +1,62 @@
 import { FaPlusCircle } from "react-icons/fa";
 import { BiSolidDownArrow } from "react-icons/bi";
 import { BiSolidRightArrow } from "react-icons/bi";
-import { RiSparkling2Fill } from "react-icons/ri";
 import { useState } from "react";
-import useGoalMonthlySaving from "../../hooks/useGoalMonthlySaving";
-import EditGoalModal from "./EditGoalModal";
+import { createMonthlyTransactionsQueryOptions } from "../../util/createQueryOptions";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { getSpendingDataByCategorySorted } from "../../util/spendingData";
 
-export default function BudgetTable({goalsList, openModel}) {
-    const [isShowDataRows, setIsShowDataRow] = useState(true);
-    const [selectedGoalItem, setSelectedGoalItem] = useState();
-    const [editMode, setEditMode] = useState(false);
-    const goalMonthlySaving = useGoalMonthlySaving(selectedGoalItem);
+
+export default function BudgetTable({itemId, goalsList, categoryBudgetList, openModel, openCategoryModal, setSelectedGoalItem}) {
+    const [isShowGoalDataRow, setIsShowGoalDataRow] = useState(true);
+    const [isShowCategoryDataRow, setIsShowCategoryDataRow] = useState(true);
+    const { data: monthlyTransactionsResponse, isLoading: loadingMonthlyTransactions } = useQuery(
+        createMonthlyTransactionsQueryOptions(
+          { itemId},
+          {
+            staleTime: Infinity,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            enabled: !!itemId
+          }
+        )
+    )
+    
+    const monthlyTransactions = monthlyTransactionsResponse?.monthlyTransactions ?? [];
+    //return {totalSpending: int, sortedCategories[{category, total, icon, color}]}
+    const categorySpendingData = useMemo(() => getSpendingDataByCategorySorted(monthlyTransactions), [monthlyTransactions]);
+    console.log(categorySpendingData)
+    
+    if (loadingMonthlyTransactions || monthlyTransactions.length === 0) {
+        return <div>Loading....</div>
+    }
     return (
-        <div className="flex mt-4 border-t-2 border-gray-300">
-            {/*Table section*/}
-            <div className="w-2/3 border-r-2 border-gray-300">
-                <table className="w-full border-collapse">
-                    <thead>
-                        <tr className="text-left border-b font-semibold text-lg">
-                            <th className="flex items-center gap-2 py-2 px-4 w-[30%] text-2xl">
-                                {isShowDataRows
+        <div className="w-full mt-4 border-t">
+            <table className="w-full border-collapse">
+                <thead>
+                    <tr className="text-left border-b font-semibold text-lg">
+                        <th className="gap-2 py-2 px-4 w-[30%]">
+                            <div className="flex items-center gap-1">
+                                {isShowGoalDataRow
                                     ? 
                                     <span>
                                         <BiSolidDownArrow
-                                            className="text-gray-500 text-lg"
-                                            onClick={() => setIsShowDataRow(prev => !prev)}
+                                            className="text-gray-400 text-lg"
+                                            onClick={() => setIsShowGoalDataRow(prev => !prev)}
+
                                         />
                                     </span> 
                                     :
                                     <span>
                                         <BiSolidRightArrow
-                                            className="text-gray-500 text-lg"
-                                            onClick={() => setIsShowDataRow(prev => !prev)}
+                                            className="text-gray-400 text-lg"
+                                            onClick={() => setIsShowGoalDataRow(prev => !prev)}
+
                                         />
                                     </span> 
 
                                 }
-                                
                                 <span>Goals</span>
                                 <span>
                                     <FaPlusCircle
@@ -44,88 +64,113 @@ export default function BudgetTable({goalsList, openModel}) {
                                         onClick={openModel}
                                     />
                                 </span>
-                            </th>
-                            <th className="py-2 px-4 w-[20%] text-gray-500 text-right">Saved</th>
-                            <th className="py-2 px-4 w-[30%]"></th>
-                            <th className="py-2 px-4 w-[20%] text-gray-500">Target Amount</th>
-                        </tr>
-                    </thead>
-                    {isShowDataRows && 
-                        <tbody>
-                            {goalsList.map((goal) => (
-                                <tr
-                                    key={goal.goal_id}
-                                    className="hover:bg-blue-50"
-                                    onClick={() => setSelectedGoalItem(goal)}
-                                >
-                                    <td className="py-2 px-4 font-medium">{goal.goal_name}</td>
-                                    <td className="py-2 px-4 text-right font-medium tracking-wide">${Math.round(goal.saved_amount)}</td>
-                                    <td className="py-2 px-4">
-                                        <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div
-                                                className="bg-green-500 h-2 rounded-full"
-                                                style={{ width: `${(goal.progress)}%` }}
-                                            ></div>
-                                        </div>
-                                    </td>
-                                    <td className="py-2 px-4 font-medium tracking-wide">${Math.round(goal.target_amount)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    }
-                </table>
-            </div>
-            {selectedGoalItem && !editMode &&
-                <div className="flex-1 bg-gray-100">
-                    <div className="flex items-center p-2">
-                        <h1 className="text-[1.75rem] font-medium">{selectedGoalItem.goal_name}</h1>
-                        <button
-                            className="ml-auto text-blue-500 cursor-pointer"
-                            onClick={() => setEditMode(true)}
-                        >
-                            Edit
-                        </button>
-                    </div>
-                    <div className="px-4 py-2">
-                        <div>
-                            <span className="font-bold">Summary</span>
-                            <div className="flex flex-col gap-1 mt-2 ">
-                                <p className="font-bold">${selectedGoalItem.target_amount} by {selectedGoalItem.target_date}</p>
-                                <div className="bg-gray-200 rounded-full h-2">
-                                    <div
-                                        className="bg-yellow-500 h-2 rounded-full"
-                                        style={{ width: `${(selectedGoalItem.progress)}%` }}
-                                    ></div>
-                                </div>
-                                <div className="flex flex-wrap justify-between">
-                                    <p>${selectedGoalItem.saved_amount} saved ({(selectedGoalItem.progress).toFixed(2)}%)</p>
-                                    <p>Started {selectedGoalItem.start_date}</p>
-                                </div>
                             </div>
-                        </div>
-                    </div>
-                    <div className="px-4">
-                        <div className="flex items-center justify-center gap-2 mt-5 hover:scale-125 transition-scale duration-500">
-                            <RiSparkling2Fill className="text-blue-500"/>
-                            <span>You need to save <b>${goalMonthlySaving}</b> this month</span>
-                        </div>
-                        <span className="inline-block h-px w-full bg-gray-400"></span>
+                        </th>
+                        <th className="py-2 px-4 w-[20%] text-gray-400 text-right">Saved</th>
+                        <th className="py-2 px-4 w-[30%]"></th>
+                        <th className="py-2 px-4 w-[20%] text-gray-400">Target</th>
+                    </tr>
+                </thead>
+                {isShowGoalDataRow && 
+                    <tbody>
+                        {goalsList.map((goal) => (
+                            <tr
+                                key={goal.goal_id}
+                                className="hover:bg-blue-50"
+                                onClick={() => setSelectedGoalItem(goal)}
+                            >
+                                <td className="py-2 px-4">{goal.goal_name}</td>
+                                <td className="py-2 px-4 text-right font-medium tracking-wide">${Math.round(goal.saved_amount)}</td>
+                                <td className="py-2 px-4">
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                        <div
+                                            className="bg-green-500 h-2 rounded-full"
+                                            style={{ width: `${(goal.progress)}%` }}
+                                        ></div>
+                                    </div>
+                                </td>
+                                <td className="py-2 px-4 font-medium tracking-wide">${Math.round(goal.target_amount)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                }
+                <thead>
+                    <tr className="text-left border-b border-t font-semibold text-lg">
+                        <th className="gap-2 py-2 px-4 w-[30%]">
+                            <div className="flex items-center gap-1">
+                                {isShowCategoryDataRow
+                                    ? 
+                                    <span>
+                                        <BiSolidDownArrow
+                                            className="text-gray-400 text-lg"
+                                            onClick={() => setIsShowCategoryDataRow(prev => !prev)}
 
-                        <span className="font-bold">Contributions</span>
-                    </div>
-                </div>
-            }
-            
-            {/* Entering Editing mode */}
-            {(selectedGoalItem && editMode) &&
-                <div className="flex-1 bg-gray-50">
-                    <EditGoalModal
-                        goalItem={selectedGoalItem}
-                        setEditMode={setEditMode}
-                    />
-                </div>
-            }
+                                        />
+                                    </span> 
+                                    :
+                                    <span>
+                                        <BiSolidRightArrow
+                                            className="text-gray-400 text-lg"
+                                            onClick={() => setIsShowCategoryDataRow(prev => !prev)}
 
+                                        />
+                                    </span> 
+
+                                }
+                                <span>Categories</span>
+                                <span>
+                                    <FaPlusCircle
+                                        className="text-blue-400 cursor-pointer opacity-0 hover:opacity-100 transition-opacity duration-300"
+                                        onClick={openCategoryModal}
+                                    />
+                                </span>
+                            </div>
+                        </th>
+                        <th className="py-2 px-4 w-[20%] text-gray-400 text-right">Spent</th>
+                        <th className="py-2 px-4 w-[30%]"></th>
+                        <th className="py-2 px-4 w-[20%] text-gray-400">Budget</th>
+                    </tr>
+                </thead>
+                {isShowCategoryDataRow && 
+                    <tbody>
+                        {categoryBudgetList.map((category) => (
+                            <tr
+                                key={category.budget_id}
+                                className="hover:bg-blue-50"
+                                onClick={() => setSelectedGoalItem(category)}
+                            >
+                                <td className="py-2 px-4">
+                                    <div
+                                        className={`flex items-center gap-2 rounded-full px-3 py-1 w-fit ${categorySpendingData.sorted[category.category_name]?.color}`}
+                                        title={category.category_name}
+                                    >
+                                        <img className="w-5 h-5 flex-shrink-0"
+                                            src={categorySpendingData.sorted[category.category_name]?.icon}
+                                            alt={`${category.category_name} Icon`}
+                                        />
+                                        <span className="text-sm font-bold truncate hidden md:inline">
+                                            {category.category_name}
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <td className="py-2 px-4 text-right font-medium tracking-wide">
+                                    ${categorySpendingData.sorted[category.category_name]?.total || category.spent_amount}
+                                </td>
+                                <td className="py-2 px-4">
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                        <div
+                                            className="bg-green-500 h-2 rounded-full"
+                                            style={{ width: `${categorySpendingData.sorted[category.category_name]?.percent || 0}%` }}
+                                        ></div>
+                                    </div>
+                                </td>
+                                <td className="py-2 px-4 font-medium tracking-wide">${Math.round(category.target_amount)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                }
+            </table>
         </div>
     )
 }

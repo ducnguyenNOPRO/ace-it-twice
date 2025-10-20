@@ -5,6 +5,7 @@ const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
 const prettyMapCategory = require('./constants/prettyMapCategory');
 const { validateFilters } = require('./utils/validateFilters')
 const { format } = require("date-fns");
+const {formatDate} = require("./utils/formatDate")
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -834,20 +835,8 @@ exports.addGoal = onCall(async (request) => {
       .doc(uid)
       .collection("goals")
       .doc();
-
-    const date = new Date().toISOString().split("T")[0];
-    
     const newGoalDocData = {
       ...goalData,
-      start_date: new Date().toLocaleString('en-US', {
-        month: 'short',
-        year: 'numeric'
-      }),
-      contributions: [
-        {
-          date: date, amount: goalData.saved_amount    // first contribution is user's saved amount input
-        }
-      ],
       goal_id: newGoalDocRef.id,
       progress: goalData.saved_amount / goalData.target_amount * 100
     }
@@ -889,5 +878,72 @@ exports.editGoalById= onCall(async (request) => {
   } catch (error) {
     console.error(error);
     throw new HttpsError("internal", "Fail to update goal")
+  }
+})
+
+exports.getBudgets = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+
+  try {
+    const budgetsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('budgets');
+    
+    const query = budgetsRef.orderBy("target_amount", "desc");
+    const snapshot = await query.get();
+
+    const budgets = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+
+    return {
+      success: true,
+      message: "Goals fetched succesfully",
+      totalItems: budgets.length,
+      budgets: budgets,
+    }
+  } catch (error) {
+    console.log(error);
+    throw new HttpsError("internal", "Fail to get budget items.");
+  }
+})
+
+exports.addBudget = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const budgetData = request.data.budgetData;
+
+  if (!budgetData) {
+    throw new HttpsError("invalid-argument", "Missing budget data");
+  }
+
+  try {
+    // Create a new doc ref with an auto generated ID
+    const newBudgetDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection("budgets")
+      .doc();
+    
+    const newBudgetDocData = {
+      ...budgetData,
+      budget_id: newBudgetDocRef.id,
+      createdAt: FieldValue.serverTimestamp(),
+      spent_amount: 0
+    }
+
+    // Add the transaction
+    await newBudgetDocRef.set(newBudgetDocData);
+    return {success: true, message: `Budget added successfully`}
+  } catch (error) {
+    throw new HttpsError("internal", "Fail to add budget")
   }
 })
