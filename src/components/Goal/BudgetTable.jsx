@@ -2,34 +2,23 @@ import { FaPlusCircle } from "react-icons/fa";
 import { BiSolidDownArrow } from "react-icons/bi";
 import { BiSolidRightArrow } from "react-icons/bi";
 import { useState } from "react";
-import { createMonthlyTransactionsQueryOptions } from "../../util/createQueryOptions";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
-import { getSpendingDataByCategorySorted } from "../../util/spendingData";
 
 
-export default function BudgetTable({itemId, goalsList, categoryBudgetList, openModel, openCategoryModal, setSelectedGoalItem}) {
+export default function BudgetTable(
+    { goalsList, categoryBudgetList, openModel, openCategoryModal,
+        setSelectedGoalItem, setSelectedCategoryItem, categorySpendingData
+    }) {
     const [isShowGoalDataRow, setIsShowGoalDataRow] = useState(true);
     const [isShowCategoryDataRow, setIsShowCategoryDataRow] = useState(true);
-    const { data: monthlyTransactionsResponse, isLoading: loadingMonthlyTransactions } = useQuery(
-        createMonthlyTransactionsQueryOptions(
-          { itemId},
-          {
-            staleTime: Infinity,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            enabled: !!itemId
-          }
-        )
-    )
-    
-    const monthlyTransactions = monthlyTransactionsResponse?.monthlyTransactions ?? [];
-    //return {totalSpending: int, sortedCategories[{category, total, icon, color}]}
-    const categorySpendingData = useMemo(() => getSpendingDataByCategorySorted(monthlyTransactions), [monthlyTransactions]);
-    console.log(categorySpendingData)
-    
-    if (loadingMonthlyTransactions || monthlyTransactions.length === 0) {
-        return <div>Loading....</div>
+
+    const handleOpenGoalDetailPanel = (goalItem) => {
+        setSelectedGoalItem(goalItem);
+        setSelectedCategoryItem(null);
+    }
+
+    const handleOpenCategoryDetailPanel = (categoryItem) => {
+        setSelectedCategoryItem(categoryItem);
+        setSelectedGoalItem(null);
     }
     return (
         <div className="w-full mt-4 border-t">
@@ -77,7 +66,7 @@ export default function BudgetTable({itemId, goalsList, categoryBudgetList, open
                             <tr
                                 key={goal.goal_id}
                                 className="hover:bg-blue-50"
-                                onClick={() => setSelectedGoalItem(goal)}
+                                onClick={() => handleOpenGoalDetailPanel(goal)}
                             >
                                 <td className="py-2 px-4">{goal.goal_name}</td>
                                 <td className="py-2 px-4 text-right font-medium tracking-wide">${Math.round(goal.saved_amount)}</td>
@@ -137,15 +126,15 @@ export default function BudgetTable({itemId, goalsList, categoryBudgetList, open
                             <tr
                                 key={category.budget_id}
                                 className="hover:bg-blue-50"
-                                onClick={() => setSelectedGoalItem(category)}
+                                onClick={() => handleOpenCategoryDetailPanel(category)}
                             >
                                 <td className="py-2 px-4">
                                     <div
-                                        className={`flex items-center gap-2 rounded-full px-3 py-1 w-fit ${categorySpendingData.sorted[category.category_name]?.color}`}
+                                        className={`flex items-center gap-2 rounded-full px-3 py-1 w-fit ${categorySpendingData[category.category_name]?.color}`}
                                         title={category.category_name}
                                     >
                                         <img className="w-5 h-5 flex-shrink-0"
-                                            src={categorySpendingData.sorted[category.category_name]?.icon}
+                                            src={categorySpendingData[category.category_name]?.icon}
                                             alt={`${category.category_name} Icon`}
                                         />
                                         <span className="text-sm font-bold truncate hidden md:inline">
@@ -155,13 +144,17 @@ export default function BudgetTable({itemId, goalsList, categoryBudgetList, open
                                 </td>
 
                                 <td className="py-2 px-4 text-right font-medium tracking-wide">
-                                    ${categorySpendingData.sorted[category.category_name]?.total || category.spent_amount}
+                                    ${categorySpendingData[category.category_name]?.total || category.spent_amount}
                                 </td>
                                 <td className="py-2 px-4">
                                     <div className="w-full bg-gray-200 rounded-full h-2">
                                         <div
                                             className="bg-green-500 h-2 rounded-full"
-                                            style={{ width: `${categorySpendingData.sorted[category.category_name]?.percent || 0}%` }}
+                                            style={
+                                                {
+                                                    width: `${categorySpendingData[category.category_name]?.total / category.target_amount * 100}%`
+                                                }
+                                            }
                                         ></div>
                                     </div>
                                 </td>

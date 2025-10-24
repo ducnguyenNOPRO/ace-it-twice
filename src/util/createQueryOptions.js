@@ -73,10 +73,9 @@ export function createGoalsQueryOptions(
 export function createBudgetsQueryOptions(
     params = {}, options = {}
 ) { 
-    const { startDate, endDate } = params;
     return queryOptions({
         ...options, 
-        queryKey: ["budgets", startDate, endDate],
+        queryKey: ["budgets", params],
         queryFn: () => getBudgets(),
     })
 }

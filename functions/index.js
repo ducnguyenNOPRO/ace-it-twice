@@ -947,3 +947,35 @@ exports.addBudget = onCall(async (request) => {
     throw new HttpsError("internal", "Fail to add budget")
   }
 })
+
+exports.editBudgetById= onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const budgetToUpdateId = request.data.budgetToUpdateId;  // budget Id
+  const budgetData = request.data.budgetData;
+
+  if (!budgetToUpdateId) {
+    throw new HttpsError("invalid-argument", "Missing budget Id");
+  }
+  if (!budgetData) {
+    throw new HttpsError("invalid-argument", "Missing budget data");
+  }
+
+  try {
+    // Get the Bank document using itemId
+    const budgetDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection("budgets")
+      .doc(budgetToUpdateId);
+
+    await budgetDocRef.update(budgetData);
+    return {success: true, message: `Budget updated successfully`}
+  } catch (error) {
+    console.error(error);
+    throw new HttpsError("internal", "Fail to update goal")
+  }
+})

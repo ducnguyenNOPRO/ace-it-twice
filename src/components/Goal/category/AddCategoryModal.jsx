@@ -9,6 +9,7 @@ import prettyMapCategory from "../../../constants/prettyMapCategory"
 import { useMemo, useState } from "react"
 import { addBudget } from "../../../api/budget"
 import { useQueryClient } from "@tanstack/react-query"
+import formatDate from "../../../util/formatDate"
 
 
 export default function AddCategoryModal({ open, onClose, currentDate }) {
@@ -53,10 +54,6 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     }
-
-    // Format both as YYYY-MM-DD
-    const formatDate = (date) =>
-        `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     
     const refecthBudget = (startDate, endDate) => {
         queryClient.invalidateQueries({
@@ -74,20 +71,33 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
             return;
         }
 
+        const now = new Date();
+
         // start of month
-        const startDate = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1));
+        const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const startDateFormatted = now.toLocaleString("en-US", {
+            day: "2-digit",
+            month: "short",
+        });
 
         // end of month
-        const endDate = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0))
+        const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
+        const endDateFormatted = now.toLocaleString("en-US", {
+            day: "2-digit",
+            month: "short",
+        });
 
         const budgetToAdd = {
             ...formValues,
+            target_amount: Number(formValues.target_amount),
             start_date: startDate,
-            end_date: endDate
+            start_date_formatted: startDateFormatted,
+            end_date: endDate,
+            end_date_formatted: endDateFormatted
         }
 
         await addBudget(budgetToAdd, onClose);
-        refecthBudget(startDate, endDate);
+        refecthBudget(formatDate(startDate), formatDate(endDate));
     }
 
     return (

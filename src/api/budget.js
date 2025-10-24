@@ -29,3 +29,21 @@ export async function addBudget(budgetData, onClose) {
         }
     )
 }
+
+export async function editBudgetById(budgetToUpdateId, budgetData, onClose) {
+    if (!budgetToUpdateId) throw new Error("Frontend: Missing BudgetId");
+    if (!budgetData) throw new Error("Frontend: Missing Budget to update");
+
+    const editBudgetById = httpsCallable(functions, "editBudgetById");
+    await showToastDuringAsync(
+        editBudgetById({ budgetToUpdateId, budgetData }),
+        {
+            loadingMessage: "Saving Budget...",
+            successMessage: "Budget updated successfully",
+            errorMessage: "Failed to update Budget. Try again later",
+            onClose: () => {
+                onClose();
+            }
+        }
+    )
+}

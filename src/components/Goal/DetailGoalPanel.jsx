@@ -1,7 +1,7 @@
 import useGoalMonthlySaving from "../../hooks/useGoalMonthlySaving";
 import { RiSparkling2Fill } from "react-icons/ri";
 
-export default function DetailPanel({ selectedGoalItem, setEditMode }) {
+export default function DetailGoalPanel({ selectedGoalItem, setEditMode }) {
     const goalMonthlySaving = useGoalMonthlySaving(selectedGoalItem);
     return (
         <>
