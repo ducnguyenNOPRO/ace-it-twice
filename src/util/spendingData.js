@@ -106,7 +106,7 @@ export const getSpendingDataByCategorySorted = (transactions) => {
         .sort((a, b) => b[1].total - a[1].total)
         .reduce((acc, [category, data]) => {
             acc[category] = {
-                total: (data.total * -1).toFixed(2),
+                total: (data.total * -1),
                 icon: data.icon,
                 color: data.color,
             };

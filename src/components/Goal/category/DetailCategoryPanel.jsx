@@ -18,12 +18,12 @@ import { useQueryClient } from "@tanstack/react-query";
 function ReferenceLabel({
   fill,
   value,
-  viewBox,
+viewBox,
+  editMode,
   setEditMode,
   setInputValues,
   daysInMonth,
 }) {
-    const [isEditing, setIsEditing] = useState(false);
     const [dailyBudgetAmount, setdailyBudgetAmount] = useState(value);
 
     const debouncedDailytarget_amount = useDebounce(dailyBudgetAmount, 1500);
@@ -37,7 +37,7 @@ function ReferenceLabel({
 
     // Sync local state with prop
     useEffect(() => {
-        setIsEditing(false);
+        setEditMode(false);
         setdailyBudgetAmount(value);
     }, [value]);
 
@@ -49,7 +49,7 @@ function ReferenceLabel({
 
     return (
         <foreignObject x={x} y={y} width={foWidth} height={24}>
-        {isEditing ? (
+        {editMode ? (
             <input
                 type="number"
                 min="0"
@@ -84,7 +84,6 @@ function ReferenceLabel({
                 }}
                 title="Daily target_amount"
                 onClick={() => {
-                    setIsEditing(true);
                     setEditMode(true);
                 }}
             >
@@ -95,7 +94,7 @@ function ReferenceLabel({
     );
 }
 
-function DailySpendChart({ monthlySpendingDataByCategory, daysInMonth, setEditMode
+function DailySpendChart({ monthlySpendingDataByCategory, daysInMonth,editMode, setEditMode
     , inputValues, setInputValues
 }) {
     const dailyBudgetAmount = inputValues.target_amount / daysInMonth;
@@ -123,6 +122,7 @@ function DailySpendChart({ monthlySpendingDataByCategory, daysInMonth, setEditMo
                         <ReferenceLabel
                             value={dailyBudgetAmount.toFixed(2)}
                             fill="#FFFFFF"
+                            editMode={editMode}
                             setEditMode={setEditMode}
                             daysInMonth={daysInMonth}
                             setInputValues={setInputValues}
@@ -253,7 +253,7 @@ export default function DetailCategoryPanel(
                         <div className=" flex items-baseline justify-end font-bold">
                             <span className="relative self-start top-1 text-sm">$</span>
                             <h1 className="text-2xl">
-                                {categorySpendingData[selectedCategoryItem.category_name]?.total || 0}
+                                {categorySpendingData[selectedCategoryItem.category_name]?.total.toFixed(2) || 0}
                             </h1>
                         </div>
                         <div className="flex items-baseline justify-end font-medium text-gray-400">
@@ -271,6 +271,7 @@ export default function DetailCategoryPanel(
                     daysInMonth={getDate()}
                     inputValues={inputValues}
                     setInputValues={setInputValues}
+                    editMode={editMode}
                     setEditMode={setEditMode}
                 />
 

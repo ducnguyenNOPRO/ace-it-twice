@@ -9,7 +9,6 @@ import prettyMapCategory from "../../../constants/prettyMapCategory"
 import { useMemo, useState } from "react"
 import { addBudget } from "../../../api/budget"
 import { useQueryClient } from "@tanstack/react-query"
-import formatDate from "../../../util/formatDate"
 
 
 export default function AddCategoryModal({ open, onClose, currentDate }) {
@@ -55,9 +54,10 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
         return Object.keys(newErrors).length === 0;
     }
     
-    const refecthBudget = (startDate, endDate) => {
+    const refecthBudget = (month, year) => {
+        console.log(month, year);
         queryClient.invalidateQueries({
-            queryKey: ["budgets", startDate, endDate]
+            queryKey: ["budgets", { month, year }]
         })
     }
 
@@ -82,6 +82,7 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
 
         // end of month
         const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
+        console.log(endDate);
         const endDateFormatted = now.toLocaleString("en-US", {
             day: "2-digit",
             month: "short",
@@ -97,7 +98,7 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
         }
 
         await addBudget(budgetToAdd, onClose);
-        refecthBudget(formatDate(startDate), formatDate(endDate));
+        refecthBudget(endDate.getMonth() + 1, endDate.getFullYear());
     }
 
     return (

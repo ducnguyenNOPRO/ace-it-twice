@@ -7,12 +7,13 @@ import { useAuth } from "../../contexts/authContext";
 import { useItemId } from '../../hooks/useItemId'
 import { createBudgetsQueryOptions, createGoalsQueryOptions, createMonthlyTransactionsQueryOptions } from "../../util/createQueryOptions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getTotalGoalsSaving } from "../../util/totalGoalsSavingdata";
+// import { getTotalGoalsSaving } from "../../util/totalGoalsSavingdata";
 import EditGoalModal from "../../components/Goal/EditModal";
 import DetailGoalPanel from "../../components/Goal/DetailGoalPanel";
 import DetailCategoryPanel from "../../components/Goal/category/DetailCategoryPanel";
 import AddCategoryModal from "../../components/Goal/category/AddCategoryModal";
 import { getSpendingDataByCategorySorted, getMonthlySpendingDataPerCategory } from "../../util/spendingData"
+import BudgetPieChart from "../../components/Goal/BudgetPieChar";
 
 export default function Goal() {
     const queryClient = useQueryClient();
@@ -58,15 +59,18 @@ export default function Goal() {
     const categoryBudgetList = budgetsListResponse?.budgets ?? [];
     const monthlyTransactions = monthlyTransactionsResponse?.monthlyTransactions ?? [];
 
+    // Spending for a specific category
     //return { "MMM D", total: int}
     const monthlySpendingDataByCategory = useMemo(() =>
         getMonthlySpendingDataPerCategory(monthlyTransactions, selectedCategoryItem?.category_name)
         , [monthlyTransactions, selectedCategoryItem]);
     
-    //return {totalSpending: int, sortedCategories[{category, total, icon, color}]}
+    // Spending for all category
+    //return [{category: {total, icon, color}}]
     const categorySpendingData = useMemo(() => getSpendingDataByCategorySorted(monthlyTransactions), [monthlyTransactions]);
+    
 
-    const totalGoalsSaving = useMemo(() => getTotalGoalsSaving(goalsList), [goalsList])
+    // const totalGoalsSaving = useMemo(() => getTotalGoalsSaving(goalsList), [goalsList])
     const handleOpenAddModal = () => {
         setIsAddModalOpen(true);
     }
@@ -101,14 +105,13 @@ export default function Goal() {
                 
                 {/* Page Content*/}
                 <div className="flex-1 flex overflow-auto">
-                    <div className="flex flex-col w-1/2 border-r">
+                    <div className="flex flex-col w-[60%] border-r">
                         {/* Topbar*/}
                         <Topbar currentDate={currentDate} setCurrentDate={setCurrentDate} />
             
                         {/* Main Content */}
                         <main className="text-black mb-10">
-                            <div className="flex items-center px-6 gap-5">
-                                <div className="relative border w-fit rounded-md border-blue-500 px-7 py-5 text-center">
+                                {/* <div className="relative border w-fit rounded-md border-blue-500 px-7 py-5 text-center">
                                     <p className="uppercase">Total Goal Savings</p>
                                     <p className="font-bold text-3xl">${totalGoalsSaving}</p>
                                 </div>
@@ -119,8 +122,14 @@ export default function Goal() {
                                 <div className="border w-fit rounded-md border-blue-500 px-7 py-5 text-center">
                                     <p>Total Spent</p>
                                     <p className="font-bold text-3xl">$4000</p>
-                                </div>
-                            </div>
+                                </div> */}
+                            
+                            <BudgetPieChart
+                                currentDate={currentDate}
+                                categorySpendingData={categorySpendingData}
+                                categoryBudgetList={categoryBudgetList}
+                            />
+
                             <BudgetTable
                                 openModel={handleOpenAddModal}
                                 openCategoryModal={handleOpenAddCategoryModal}

@@ -2,6 +2,7 @@ import { FaPlusCircle } from "react-icons/fa";
 import { BiSolidDownArrow } from "react-icons/bi";
 import { BiSolidRightArrow } from "react-icons/bi";
 import { useState } from "react";
+import prettyMapCategory from "../../constants/prettyMapCategory";
 
 
 export default function BudgetTable(
@@ -20,11 +21,21 @@ export default function BudgetTable(
         setSelectedCategoryItem(categoryItem);
         setSelectedGoalItem(null);
     }
+
+    const handleShowGoalTable = () => {
+        setIsShowGoalDataRow(prev => !prev);
+        setSelectedGoalItem(null);
+    }
+
+    const handleShowCategoryTable = () => {
+        setIsShowCategoryDataRow(prev => !prev);
+        setSelectedCategoryItem(null);
+    }
     return (
         <div className="w-full mt-4 border-t">
             <table className="w-full border-collapse">
                 <thead>
-                    <tr className="text-left border-b font-semibold text-lg">
+                    <tr className="text-left border-b font-semibold text-lg bg-blue-100">
                         <th className="gap-2 py-2 px-4 w-[30%]">
                             <div className="flex items-center gap-1">
                                 {isShowGoalDataRow
@@ -32,7 +43,7 @@ export default function BudgetTable(
                                     <span>
                                         <BiSolidDownArrow
                                             className="text-gray-400 text-lg"
-                                            onClick={() => setIsShowGoalDataRow(prev => !prev)}
+                                            onClick={handleShowGoalTable}
 
                                         />
                                     </span> 
@@ -84,15 +95,15 @@ export default function BudgetTable(
                     </tbody>
                 }
                 <thead>
-                    <tr className="text-left border-b border-t font-semibold text-lg">
-                        <th className="gap-2 py-2 px-4 w-[30%]">
+                    <tr className="text-left border-b border-t font-semibold text-lg bg-blue-100">
+                        <th className="gap-2 py-2 px-4 w-[30%] ">
                             <div className="flex items-center gap-1">
                                 {isShowCategoryDataRow
                                     ? 
                                     <span>
                                         <BiSolidDownArrow
                                             className="text-gray-400 text-lg"
-                                            onClick={() => setIsShowCategoryDataRow(prev => !prev)}
+                                            onClick={handleShowCategoryTable}
 
                                         />
                                     </span> 
@@ -122,45 +133,52 @@ export default function BudgetTable(
                 </thead>
                 {isShowCategoryDataRow && 
                     <tbody>
-                        {categoryBudgetList.map((category) => (
-                            <tr
-                                key={category.budget_id}
-                                className="hover:bg-blue-50"
-                                onClick={() => handleOpenCategoryDetailPanel(category)}
-                            >
-                                <td className="py-2 px-4">
-                                    <div
-                                        className={`flex items-center gap-2 rounded-full px-3 py-1 w-fit ${categorySpendingData[category.category_name]?.color}`}
-                                        title={category.category_name}
-                                    >
-                                        <img className="w-5 h-5 flex-shrink-0"
-                                            src={categorySpendingData[category.category_name]?.icon}
-                                            alt={`${category.category_name} Icon`}
-                                        />
-                                        <span className="text-sm font-bold truncate hidden md:inline">
-                                            {category.category_name}
-                                        </span>
-                                    </div>
-                                </td>
-
-                                <td className="py-2 px-4 text-right font-medium tracking-wide">
-                                    ${categorySpendingData[category.category_name]?.total || category.spent_amount}
-                                </td>
-                                <td className="py-2 px-4">
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                        {categoryBudgetList.map((category) => {
+                            const percent = (categorySpendingData[category.category_name]?.total || 0) / category.target_amount * 100;
+                            return (
+                                <tr
+                                    key={category.budget_id}
+                                    className="hover:bg-blue-50"
+                                    onClick={() => handleOpenCategoryDetailPanel(category)}
+                                >
+                                    <td className="py-2 px-4">
                                         <div
-                                            className="bg-green-500 h-2 rounded-full"
-                                            style={
-                                                {
-                                                    width: `${categorySpendingData[category.category_name]?.total / category.target_amount * 100}%`
-                                                }
+                                            className={`flex items-center gap-2 rounded-full px-3 py-1 w-fit 
+                                            ${categorySpendingData[category.category_name]?.color || prettyMapCategory[category.category_name].color}`
                                             }
-                                        ></div>
-                                    </div>
-                                </td>
-                                <td className="py-2 px-4 font-medium tracking-wide">${Math.round(category.target_amount)}</td>
-                            </tr>
-                        ))}
+                                            title={category.category_name}
+                                        >
+                                            <img className="w-5 h-5 flex-shrink-0"
+                                                src={categorySpendingData[category.category_name]?.icon
+                                                    || prettyMapCategory[category.category_name].icon
+                                                }
+                                                alt={`${category.category_name} Icon`}
+                                            />
+                                            <span className="text-sm font-bold truncate hidden md:inline">
+                                                {category.category_name}
+                                            </span>
+                                        </div>
+                                    </td>
+
+                                    <td className="py-2 px-4 text-right font-medium tracking-wide">
+                                        ${categorySpendingData[category.category_name]?.total.toFixed(2) || category.spent_amount}
+                                    </td>
+                                    <td className="py-2 px-4">
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div
+                                                className={`${percent < 100 ? "bg-green-500" : "bg-red-500"} h-2 rounded-full`}
+                                                style={
+                                                    {
+                                                        width: `${Math.min(percent, 100)}%`
+                                                    }
+                                                }
+                                            ></div>
+                                        </div>
+                                    </td>
+                                    <td className="py-2 px-4 font-medium tracking-wide">${Math.round(category.target_amount)}</td>
+                                </tr>
+                            )
+                        })}
                     </tbody>
                 }
             </table>
