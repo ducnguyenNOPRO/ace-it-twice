@@ -5,6 +5,7 @@ const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
 const prettyMapCategory = require('./constants/prettyMapCategory');
 const { validateFilters } = require('./utils/validateFilters')
 const { format } = require("date-fns");
+const {formatDate} = require("./utils/formatDate")
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -642,8 +643,6 @@ exports.addTransaction = onCall(async (request) => {
   const transactionData = request.data.transaction;
   const itemId = request.data.itemId;
 
-  console.log("ItemId:", itemId);
-
   if (!itemId) {
     throw new HttpsError("invalid-argument", "Missing Item Id");
   }
@@ -703,12 +702,8 @@ exports.editTransactionById= onCall(async (request) => {
       .doc(itemId)
       .collection("transactions")
       .doc(transactionToUpdateId);
-    
-    const newTransactionData = {
-      ...transactionData
-    }
 
-    await transactionDocRef.update(newTransactionData);
+    await transactionDocRef.update(transactionData);
     return {success: true, message: `Transaction updated successfully`}
   } catch (error) {
     console.error(error);
@@ -786,5 +781,201 @@ exports.deleteBatchTransaction = onCall(async (request) => {
   } catch (error) {
     console.error(error);
     throw new HttpsError("internal", "Fail to delete batch transactions")
+  }
+})
+
+exports.getGoals = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+
+  try {
+    const goalsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('goals');
+    
+    const query = goalsRef.orderBy("progress", "desc");
+    const snapshot = await query.get();
+
+    const goals = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+
+    return {
+      success: true,
+      message: "Goals fetched succesfully",
+      totalGoals: goals.length,
+      goals: goals,
+    }
+  } catch (error) {
+    console.log(error);
+    throw new HttpsError("internal", "Fail to get recent transactions.");
+  }
+})
+
+exports.addGoal = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const goalData = request.data.goalData;
+
+  if (!goalData) {
+    throw new HttpsError("invalid-argument", "Missing goal data");
+  }
+
+  try {
+    // Create a new doc ref with an auto generated ID
+    const newGoalDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection("goals")
+      .doc();
+    const newGoalDocData = {
+      ...goalData,
+      goal_id: newGoalDocRef.id,
+      progress: goalData.saved_amount / goalData.target_amount * 100
+    }
+
+    // Add the transaction
+    await newGoalDocRef.set(newGoalDocData);
+    return {success: true, message: `Goal added successfully`}
+  } catch (error) {
+    throw new HttpsError("internal", "Fail to add transaction")
+  }
+})
+
+exports.editGoalById= onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const goalToUpdateId = request.data.goalToUpdateId;  // Transaction Id
+  const goalData = request.data.goalData;
+
+  if (!goalToUpdateId) {
+    throw new HttpsError("invalid-argument", "Missing goal Id");
+  }
+  if (!goalData) {
+    throw new HttpsError("invalid-argument", "Missing goal data");
+  }
+
+  try {
+    // Get the Bank document using itemId
+    const goalDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection("goals")
+      .doc(goalToUpdateId);
+
+    await goalDocRef.update(goalData);
+    return {success: true, message: `Goal updated successfully`}
+  } catch (error) {
+    console.error(error);
+    throw new HttpsError("internal", "Fail to update goal")
+  }
+})
+
+exports.getBudgets = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+
+  try {
+    const budgetsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('budgets');
+    
+    const query = budgetsRef.orderBy("target_amount", "desc");
+    const snapshot = await query.get();
+
+    const budgets = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }))
+
+    return {
+      success: true,
+      message: "Goals fetched succesfully",
+      totalItems: budgets.length,
+      budgets: budgets,
+    }
+  } catch (error) {
+    console.log(error);
+    throw new HttpsError("internal", "Fail to get budget items.");
+  }
+})
+
+exports.addBudget = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const budgetData = request.data.budgetData;
+
+  if (!budgetData) {
+    throw new HttpsError("invalid-argument", "Missing budget data");
+  }
+
+  try {
+    // Create a new doc ref with an auto generated ID
+    const newBudgetDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection("budgets")
+      .doc();
+    
+    const newBudgetDocData = {
+      ...budgetData,
+      budget_id: newBudgetDocRef.id,
+      createdAt: FieldValue.serverTimestamp(),
+      spent_amount: 0
+    }
+
+    // Add the transaction
+    await newBudgetDocRef.set(newBudgetDocData);
+    return {success: true, message: `Budget added successfully`}
+  } catch (error) {
+    throw new HttpsError("internal", "Fail to add budget")
+  }
+})
+
+exports.editBudgetById= onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const budgetToUpdateId = request.data.budgetToUpdateId;  // budget Id
+  const budgetData = request.data.budgetData;
+
+  if (!budgetToUpdateId) {
+    throw new HttpsError("invalid-argument", "Missing budget Id");
+  }
+  if (!budgetData) {
+    throw new HttpsError("invalid-argument", "Missing budget data");
+  }
+
+  try {
+    // Get the Bank document using itemId
+    const budgetDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection("budgets")
+      .doc(budgetToUpdateId);
+
+    await budgetDocRef.update(budgetData);
+    return {success: true, message: `Budget updated successfully`}
+  } catch (error) {
+    console.error(error);
+    throw new HttpsError("internal", "Fail to update goal")
   }
 })

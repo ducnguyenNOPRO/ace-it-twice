@@ -268,7 +268,6 @@ const UserForm = ({ userData, onSave, photoURL }) => {
 }
 
 export default function Setting() {
-    console.log("Transaction rendered")
     const { currentUser } = useAuth();
     const [userData, setUserData] = useState(null);
     const [photoURL, setPhotoURL] = useState(
