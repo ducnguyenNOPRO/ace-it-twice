@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 const BudgetPieChart = memo(({ currentDate, categorySpendingData, categoryBudgetList }) => {
     const formattedMonth = currentDate.toLocaleString('en-US', {
@@ -11,10 +11,13 @@ const BudgetPieChart = memo(({ currentDate, categorySpendingData, categoryBudget
     const totalSpendingThisMonth = Object.values(categorySpendingData)
         .reduce((acc, category) => acc + (category.total || 0), 0).toFixed(2);
     
-    const pieData = categoryBudgetList.map((cat) => ({
-        name: cat.category_name,
-        value: Math.round(categorySpendingData[cat.category_name]?.total) || 0
+    const pieData = Object.entries(categorySpendingData).map(([categoryName, data]) => ({
+        name: categoryName,
+        value: Math.round(data.total) || 0
     }));
+
+    console.log(categorySpendingData)
+    console.log(pieData)
 
 
     const categories = [
@@ -76,7 +79,7 @@ const BudgetPieChart = memo(({ currentDate, categorySpendingData, categoryBudget
                         data={pieData}
                         dataKey="value"
                         nameKey="name"
-                        outerRadius={90}
+                        outerRadius={60}
                         cx="50%"
                         cy="50%"
                         fill="#8884d8"
@@ -84,11 +87,12 @@ const BudgetPieChart = memo(({ currentDate, categorySpendingData, categoryBudget
                     >
                         {pieData.map((entry, index) => {
                             const colorIndex = categories.indexOf(entry.name)
-                            const fillColor = colorIndex >= 0 ? COLORS[colorIndex] : "#A1A1AA"
+                            const fillColor = colorIndex >= 0 ? COLORS[colorIndex] : "#A1A1AA";
                             return <Cell key={`cell-${index}`} fill={fillColor}/>
                         })}
                     </Pie>
-                    <Tooltip formatter={(value) => `$${value}`}/>
+                    <Tooltip formatter={(value) => `$${value}`} />
+                    <Legend layout="vertical" verticalAlign="middle" align="right"/>
                 </PieChart>
             </ResponsiveContainer>
 

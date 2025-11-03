@@ -8,4 +8,8 @@ export default defineConfig({
   plugins: [
     react(), tailwindcss(),eslint()
   ],
+  server: {
+    port: 5173, // your dev server port
+    allowedHosts: ["myapp123.loca.lt"] // allow your localtunnel host
+  }
 })

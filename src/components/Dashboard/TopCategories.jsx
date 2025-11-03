@@ -1,7 +1,7 @@
 import React from "react";
 
 export default function TopCategories({ categorySpendingData }) {
-    if (categorySpendingData.sorted.length == 0) {
+    if (!categorySpendingData || categorySpendingData.sorted?.length == 0) {
         return (
             <div className="text-lg">
                 No Monthly Spending Data
@@ -19,7 +19,7 @@ export default function TopCategories({ categorySpendingData }) {
             </select> */}
 
             <div className="mt-5 grid grid-cols-[auto_auto_1fr_auto] gap-y-5 gap-x-3">
-            {categorySpendingData.sorted.map((cat) => (
+            {categorySpendingData.sorted?.map((cat) => (
                 <React.Fragment key={cat.category}>
                     <div
                         className={`flex items-center gap-2 rounded-full px-3 py-1 sm:w-fit overflow-hidden ${cat.color}`}

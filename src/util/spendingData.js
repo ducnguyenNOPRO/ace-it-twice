@@ -37,7 +37,7 @@ export const getMonthlySpendingDataPerCategory = (transactions, category) =>  {
 }
 
 export const getSpendingDataByCategory = (transactions) => {
-    if (!transactions || transactions.length == 0) return [];
+    if (!transactions || transactions.length == 0) return null;
 
     const spendingOnly = transactions.filter(tx => tx.amount < 0)  
     const categoriesTotal = {};  // <String: {total, icon, color}>
