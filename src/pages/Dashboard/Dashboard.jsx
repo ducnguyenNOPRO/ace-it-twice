@@ -53,6 +53,7 @@ export default function Dashboard() {
 
     //return {totalSpending: int, sortedCategories[{category, total, icon, color}]}
   const categorySpendingData = useMemo(() => getSpendingDataByCategory(monthlyTransactions), [monthlyTransactions]);
+
   const handlePrev = () => {
     setCurrentIndex(prev => (prev === 0 ? accounts.length - 1 : prev - 1));
   }

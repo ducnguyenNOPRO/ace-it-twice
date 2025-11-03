@@ -4,8 +4,8 @@ const {FieldValue} = require("firebase-admin/firestore")
 const { PlaidApi, Configuration, PlaidEnvironments } = require('plaid');
 const prettyMapCategory = require('./constants/prettyMapCategory');
 const { validateFilters } = require('./utils/validateFilters')
+const { verifyPlaidWebhook } = require('./utils/validatePlaidWebhook');
 const { format } = require("date-fns");
-const {formatDate} = require("./utils/formatDate")
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -39,6 +39,7 @@ exports.createLinkToken = onCall(async (request) => {
       language: 'en',
       redirect_uri: "http://localhost:5173/Setting",
       country_codes: ['US'],
+      webhook: "https://bright-lions-hug.loca.lt/ace-it-twice/us-central1/plaidWebhook"
   };
 
   try {
@@ -53,6 +54,120 @@ exports.createLinkToken = onCall(async (request) => {
   }
 });
 
+// Fetch transactins from Plaid and save to DB
+async function syncPlaidTransaction(uid, itemId) {
+  console.log(`[syncPlaidTransactions] Syncing for user ${uid}, item ${itemId}`);
+  try {
+    // Get access token from firestore
+    const plaidDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId);
+    
+    const batch = admin.firestore().batch();  // Used to write multiple documents at once
+    const transactionRef = plaidDocRef.collection("transactions")
+    
+    const plaidDoc = await plaidDocRef.get();
+    
+    if (!plaidDoc.exists) {
+      throw new HttpsError("not-found", "Plaid item not found.");
+    }
+
+    const data = plaidDoc.data();
+    const access_token = data.accessToken;
+    let cursor = data.cursor || null;
+
+    let added = []; // new transactions
+    let modified = []; // updates to existing transactions
+    let removed = []; // transactions to delete or mark as removed
+    let hasMore = true;
+    let response;
+
+    while (hasMore) {
+      response = await plaidClient.transactionsSync({
+        access_token,
+        cursor
+      });
+      
+      const data = response.data;
+
+      // Add this page of results
+      added = added.concat(data.added);
+      modified = modified.concat(data.modified);
+      removed = removed.concat(data.removed);
+
+      hasMore = data.has_more;
+      cursor = data.next_cursor;
+    }
+
+    // List of accounts
+    const accountsMap = {};
+    for (const acc of response.data.accounts) {
+      accountsMap[acc.account_id] = {
+        name: acc.name,
+        mask: acc.mask
+      };
+    }
+
+    // Process added + modified transactions
+    // Merge account data: name and mask to transaction data
+    const transactionsToSave = [...added, ...modified].map(tx => {
+      const accountInfo = accountsMap[tx.account_id];
+      return {
+        transaction_id: tx.transaction_id,
+        merchant_name: tx.merchant_name || tx.name,
+        merchant_name_lower: tx.merchant_name?.toLowerCase() || tx.name?.toLowerCase(),
+        amount: tx.amount * -1,
+        amount_filter: tx.amount < 0 ? tx.amount * -1 : tx.amount,
+        iso_currency_code: tx.iso_currency_code,
+        date: tx.date,
+        //datetime: tx.datetime,
+        //authorized_date: tx.authorized_date,
+        //authorized_datetime: tx.authorized_datetime,
+        // location: tx.location,
+        // logo_url: tx.logo_url,
+        pending: tx.pending,
+        category: prettyMapCategory[tx.personal_finance_category.primary] || "Other",
+        category_lower: prettyMapCategory[tx.personal_finance_category.primary]?.toLowerCase() || "Other",
+        account_id: tx.account_id,
+        notes: '',
+        removed: false,
+
+        // merged account info:
+        account_name: accountInfo.name || "Unknown",
+        account_name_lower: accountInfo.name?.toLowerCase() || "unknown",
+        account_mask: accountInfo.mask || "****",
+      }
+    })
+    
+    // Process removed transactions
+    removed.forEach(tx => {
+      const docRef = transactionRef.doc(tx.transaction_id);
+      batch.update(docRef, {removed: true})
+    })
+    
+    transactionsToSave.forEach(tx => {
+      const docRef = transactionRef.doc(tx.transaction_id);
+      batch.set(docRef, tx, {merge: true});
+    });
+
+    await batch.commit();
+
+    await plaidDocRef.update({ cursor });
+
+    return {
+      success: true,
+      message: "Transactions synced",
+      count: transactionsToSave.length
+    };
+  }
+  catch (error) {
+    console.error(error);
+    throw new HttpsError("internal", "Fail to fetch transactions.");
+  }
+}
+
 // Exchange public token for permanent access token
 exports.exchangePublicToken = onCall(async (request) => {
   //debugger;
@@ -63,8 +178,9 @@ exports.exchangePublicToken = onCall(async (request) => {
   }
 
   try {
-    const response = await plaidClient.itemPublicTokenExchange({ public_token });
-    console.log("Exchange response:", response.data);
+    const response = await plaidClient.itemPublicTokenExchange({
+      public_token,
+    });
 
     // These values should be saved to a persistent database and
     // associated with the currently signed-in user
@@ -86,6 +202,52 @@ exports.exchangePublicToken = onCall(async (request) => {
     return {success: true, message: "Token Exchange succefully", itemId}
   } catch (error) {
     throw new HttpsError("internal", error.message || "Unknown error with Plaid");
+  }
+})
+
+exports.plaidWebhook = onRequest(async (req, res) => {
+  const body = req.body;
+  try {
+    // Plaid sends a JSON object with:
+    // body.webhook_type, body.webhook_code, body.item_id
+    const { webhook_code, item_id } = body;
+
+    // Only act on SYNC_UPDATES_AVAILABLE
+    if (webhook_code !== "SYNC_UPDATES_AVAILABLE") {
+      console.log("Ignoring webhook:", webhook_code);
+      return res.status(200).send("Ignored");
+    }
+
+    // Verify webhook from Plaid
+    const verified = await verifyPlaidWebhook(req);
+    if (!verified) {
+      console.warn("Plaid webhook failed verification");
+      return res.status(401).send("Invalid Signature");
+    }
+
+    // Look up users who own this item
+    const userRef = admin.firestore().collection("users");
+    const snapshot = await userRef.get();
+
+    let userDoc = null;
+    for (const doc of snapshot.docs) {
+      const plaidDoc = await doc.ref.collection("plaid").doc(item_id).get();
+      if (plaidDoc.exists) {
+        userDoc = doc;
+        break;
+      }
+    }
+
+    if (!userDoc) {
+      return res.status(404).send("Item not found");
+    }
+
+    // Call sync
+    await syncPlaidTransaction(userDoc.id, item_id)
+    res.status(200).send("Webhook processed");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error processing webhook");
   }
 })
 
@@ -189,102 +351,9 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
 
   const uid = request.auth.uid;
   const itemId = request.data.itemId
-  console.log(itemId);
-  console.log(uid);
 
   if (!itemId) throw new HttpsError("invalid-argument", "Missing itemId");
-
-  try {
-    // Get access token from firestore
-    const plaidDocRef = admin.firestore()
-      .collection('users')
-      .doc(uid)
-      .collection('plaid')
-      .doc(itemId);
-    
-    const plaidDoc = await plaidDocRef.get();
-    
-    if (!plaidDoc.exists) {
-      throw new HttpsError("not-found", "Plaid item not found.");
-    }
-
-    const access_token = plaidDoc.data().accessToken;
-
-    const now = new Date();   // YYYY-MM-DD T HH:MM::SS
-    const aYearAgo = new Date();
-    aYearAgo.setFullYear(now.getFullYear() - 1);
-
-    // Format as YYYY-MM-DD if needed (depends on your DB)
-    const startDate = aYearAgo.toISOString().split("T")[0]; // e.g., "2025-01-30"
-    const endDate = now.toISOString().split("T")[0]; // e.g., "2025-07-30"
-
-    // Call Plaid to get Accounts
-    const transactionsResponse = await plaidClient.transactionsGet({
-      access_token: access_token,
-      start_date: startDate,
-      end_date: endDate,
-    })
-
-    // List of accounts
-    const accountsMap = {};
-    for (const acc of transactionsResponse.data.accounts) {
-      accountsMap[acc.account_id] = {
-        name: acc.name,
-        mask: acc.mask
-      };
-    }
-
-    // Merge account data: name and mask to transaction data
-    const transactionsToSave = transactionsResponse.data.transactions.map(tx => {
-      const accountInfo = accountsMap[tx.account_id];
-      return {
-        transaction_id: tx.transaction_id,
-        merchant_name: tx.merchant_name || tx.name,
-        merchant_name_lower: tx.merchant_name?.toLowerCase() || tx.name?.toLowerCase(),
-        amount: tx.amount * -1,
-        amount_filter: tx.amount < 0 ? tx.amount * -1 : tx.amount,
-        iso_currency_code: tx.iso_currency_code,
-        date: tx.date,
-        //datetime: tx.datetime,
-        //authorized_date: tx.authorized_date,
-        //authorized_datetime: tx.authorized_datetime,
-        // location: tx.location,
-        // logo_url: tx.logo_url,
-        pending: tx.pending,
-        category: prettyMapCategory[tx.personal_finance_category.primary] || "Other",
-        category_lower: prettyMapCategory[tx.personal_finance_category.primary]?.toLowerCase() || "Other",
-        account_id: tx.account_id,
-        notes: '',
-
-        // merged account info:
-        account_name: accountInfo.name || "Unknown",
-        account_name_lower: accountInfo.name?.toLowerCase() || "Unknown",
-        account_mask: accountInfo.mask || "****",
-      }
-    })
-
-    // Store accounts in Firestore
-    const batch = admin.firestore().batch();  // Used to write multiple documents at once
-    const transactionRef = plaidDocRef.collection("transactions")
-    
-    
-    transactionsToSave.forEach(transaction => {
-      const docRef = transactionRef.doc(transaction.transaction_id);
-      batch.set(docRef, transaction);
-    });
-
-    await batch.commit();
-
-    return {
-      success: true,
-      message: "Accounts synced",
-      count: transactionsToSave.length
-    };
-  }
-  catch (error) {
-    console.error(error);
-    throw new HttpsError("internal", "Fail to fetch transactions.");
-  }
+  return syncPlaidTransaction(uid, itemId);
 })
 
 // Cursor based Pagination
@@ -322,7 +391,7 @@ exports.getTransactionsFilteredPaginated = onCall(async (request) => {
       .doc(itemId)
       .collection('transactions');
     
-    let query = transactionsRef.orderBy("date", "desc")
+    let query = transactionsRef.orderBy("date", "desc").where("removed", "!=", true);
     if (name) {  // merchant name 
       query = query
         .where("merchant_name_lower", ">=", name) // use third party app for case sensitive search
@@ -413,7 +482,7 @@ exports.getRecentTransactions = onCall(async (request) => {
       .doc(itemId)
       .collection('transactions');
     
-    const query = transactionsRef.orderBy("date", "desc").limit(limit);
+    const query = transactionsRef.orderBy("date", "desc").where("removed", "!=", true).limit(limit);
     const snapshot = await query.get();
 
     const transactions = snapshot.docs.map(doc => ({
@@ -461,6 +530,7 @@ exports.getMonthlyTransactions = onCall(async (request) => {
     console.log(startDate, endDate)
     
     const query = transactionsRef
+      .where("removed", "!=", true)
       .where("date", ">=", startDate)
       .where("date", "<=", endDate)
       .orderBy("date", "desc");
@@ -483,98 +553,6 @@ exports.getMonthlyTransactions = onCall(async (request) => {
   }
 })
 
-
-/**** 
-exports.plaidWebhook = onRequest(async (req, res) => {
-  const body = res.body;
-
-  try {
-    const webhookType = body.webhook_type;
-    const webhookCode = body.webhook_code;
-    const itemId = body.item_id;
-
-    console.log("Webhook received:", webhookType, webhookCode);
-
-    if (webhookType === "TRANSACTIONS" && webhookCode === "TRANSACTIONS_UPDATED") {
-      await handleTransactionsUpdated(itemId);
-    }
-
-    res.status(200).send("Webhook received");
-  } catch (err) {
-    console.error("❌ Webhook error:", err);
-    res.status(500).send("Error handling webhook");
-  }
-})
-
-async function handleTransactionsUpdated(itemId) {
-   // Find user that owns this itemId
-  const usersSnap = await admin.firestore().collection("users").get();
-
-  let userId = null;
-  for (const userDoc of usersSnap.docs) {
-    const plaidDoc = await userDoc.ref.collection("plaid").doc(itemId).get();
-    if (plaidDoc.exists) {
-      userId = userDoc.id;
-      break;
-    }
-  }
-
-  if (!userId) {
-    throw new Error(`Item ID ${itemId} not found under any user.`);
-  }
-  await syncTransactionsWithCursor(userId, itemId);
-}
-
-async function syncTransactionsWithCursor(uid, itemId) {
-  const itemDocRef = admin.firestore().collection("users").doc(uid).collection("plaid").doc(itemId);
-  const itemDoc = await itemDocRef.get();
-
-  if (!itemDoc.exists) {
-    throw new Error("Plaid Document not found");
-  }
-  
-  const { accessToken, cursor: savedCursor } = itemDoc.data();
-
-  let cursor = savedCursor || null;
-  let added = [], modified = [], removed = [];
-  let hasMore = true;
-
-  while (hasMore) {
-    const res = await plaidClient.transactionsSync({
-      access_token: accessToken,
-      cursor: cursor,
-    });
-
-    added.push(...res.data.added);
-    modified.push(...res.data.modified);
-    removed.push(...res.data.removed);
-
-    hasMore = res.data.has_more;
-    cursor = res.data.next_cursor;
-  }
-
-  const transactionRef = itemDocRef.collection("transactions");
-  const batch = admin.firestore().batch();
-
-  added.forEach(tx => {
-    const txDoc = transactionRef.doc(tx.transaction_id);
-    batch.set(txDoc, tx);
-  });
-
-  modified.forEach(tx => {
-    const txDoc = transactionRef.doc(tx.transaction_id);
-    batch.set(txDoc, tx, { merge: true });
-  });
-
-  removed.forEach(tx => {
-    const txDoc = transactionRef.doc(tx.transaction_id);
-    batch.delete(txDoc);
-  });
-
-  await batch.commit();
-  await itemDocRef.update({ cursor });
-}
-***/
 
 // Get all user data from firestore
 exports.getUser = onCall(async (request) => {
@@ -662,7 +640,8 @@ exports.addTransaction = onCall(async (request) => {
 
     const newTxDocData = {
       ...transactionData,
-      transaction_id: newTxDocRef.id
+      transaction_id: newTxDocRef.id,
+      removed: false
     }
 
     // Add the transaction
