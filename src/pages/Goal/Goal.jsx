@@ -2,12 +2,13 @@ import Sidebar from "../../components/Sidebar/Sidebar"
 import Topbar from "../../components/Goal/Topbar"
 import { useMemo, useState, useEffect } from "react";
 import AddGoalModal from "../../components/Goal/AddGoalModal";
+import AddFundModal from "../../components/Goal/AddFundModal";
+import WithdrawalFundModal from "../../components/Goal/WithdrawalFundModal";
 import BudgetTable from "../../components/Goal/BudgetTable";
 import { useAuth } from "../../contexts/authContext";
 import { useItemId } from '../../hooks/useItemId'
 import { createBudgetsQueryOptions, createGoalsQueryOptions, createMonthlyTransactionsQueryOptions } from "../../util/createQueryOptions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-// import { getTotalGoalsSaving } from "../../util/totalGoalsSavingdata";
 import EditGoalModal from "../../components/Goal/EditModal";
 import DetailGoalPanel from "../../components/Goal/DetailGoalPanel";
 import DetailCategoryPanel from "../../components/Goal/category/DetailCategoryPanel";
@@ -19,6 +20,8 @@ export default function Goal() {
     const queryClient = useQueryClient();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isAddCategoryModelOpen, setIsAddCategoryModalOpen] = useState(false);
+    const [isAddFundModalOpen, setIsAddFundModallOpen] = useState(false);
+    const [isWithdrawalFundModalOpen, setIsWithdrawalFundModalOpen] = useState(false);
     const { currentUser } = useAuth();
     const { itemId } = useItemId(currentUser.uid);
     const [selectedGoalItem, setSelectedGoalItem] = useState(null);
@@ -27,6 +30,7 @@ export default function Goal() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const { data: goalsListResponse } = useQuery(
         createGoalsQueryOptions(
+            {},
             {
                 staleTime: Infinity,
                 refetchOnWindowFocus: false,
@@ -45,13 +49,13 @@ export default function Goal() {
             }));
     const { data: monthlyTransactionsResponse, isLoading: loadingMonthlyTransactions } = useQuery(
         createMonthlyTransactionsQueryOptions(
-          { itemId},
-          {
-            staleTime: Infinity,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            enabled: !!itemId
-          }
+            { itemId },
+            {
+                staleTime: Infinity,
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false,
+                enabled: !!itemId
+            }
         )
     )
 
@@ -71,9 +75,6 @@ export default function Goal() {
     
 
     // const totalGoalsSaving = useMemo(() => getTotalGoalsSaving(goalsList), [goalsList])
-    const handleOpenAddModal = () => {
-        setIsAddModalOpen(true);
-    }
 
     // Always enable view mode when click on a new item
     useEffect(() => {
@@ -82,12 +83,32 @@ export default function Goal() {
 
     console.log(queryClient.getQueryCache().getAll())
 
+    const handleOpenAddModal = () => {
+        setIsAddModalOpen(true);
+    }
+
     const handleOpenAddCategoryModal = () => {
         setIsAddCategoryModalOpen(true);
     }
 
     const handleCloseAddModal = () => {
         setIsAddModalOpen(false);
+    }
+
+    const handleCloseAddFundModal = () => {
+        setIsAddFundModallOpen(false);
+    }
+
+    const handleOpenAddFundModal = () => {
+        setIsAddFundModallOpen(true);
+    }
+
+    const handleOpenWithdrawalFundModal = () => {
+        setIsWithdrawalFundModalOpen(true);
+    }
+
+    const handleCloseWithdrawalFundModal = () => {
+        setIsWithdrawalFundModalOpen(false);
     }
 
     const handleCloseCategoryModal = () => {
@@ -156,13 +177,34 @@ export default function Goal() {
                                 currentDate={currentDate}
                             />
                         )}
+                        {isAddFundModalOpen && selectedGoalItem && (
+                            <AddFundModal
+                                open={isAddFundModalOpen}
+                                onClose={handleCloseAddFundModal}
+                                itemId={itemId}
+                                selectedGoalItem={selectedGoalItem}
+                                setSelectedGoalItem={setSelectedGoalItem}
+                            />
+                        )}
+                        {isWithdrawalFundModalOpen && selectedGoalItem && (
+                            <WithdrawalFundModal
+                                open={isWithdrawalFundModalOpen}
+                                onClose={handleCloseWithdrawalFundModal}
+                                itemId={itemId}
+                                selectedGoalItem={selectedGoalItem}
+                                setSelectedGoalItem={setSelectedGoalItem}
+                            />
+                        )}
                     </div>
 
                     {/* Detail Panel for Goal item */}
                     {(selectedGoalItem && !editMode) &&
                         <DetailGoalPanel
+                            itemId={itemId}
                             selectedGoalItem={selectedGoalItem}
                             setEditMode={setEditMode}
+                        handleOpenAddFundModal={handleOpenAddFundModal}
+                        handleOpenWithdrawalFundModal={handleOpenWithdrawalFundModal}
                         />
                     }
 

@@ -1,21 +1,59 @@
 import useGoalMonthlySaving from "../../hooks/useGoalMonthlySaving";
 import { RiSparkling2Fill } from "react-icons/ri";
+import { useState } from "react";
+import { BsThreeDotsVertical } from "react-icons/bs";
+import { MdEdit } from "react-icons/md";
+import { FiPlusCircle } from "react-icons/fi";
+import { FiMinusCircle } from "react-icons/fi";
 
-export default function DetailGoalPanel({ selectedGoalItem, setEditMode }) {
+export default function DetailGoalPanel({selectedGoalItem, setEditMode, handleOpenAddFundModal, handleOpenWithdrawalFundModal }) {
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const goalMonthlySaving = useGoalMonthlySaving(selectedGoalItem);
     return (
         <>
             <div className="flex-1">
-                <div className="flex items-center h-12 px-10 border-b border-gray-300 p-2">
+                <div className="flex items-center justify-between h-12 px-10 border-b border-gray-300 p-2">
                     <h1 className="text-2xl text-black font-medium">
                         Goal
                     </h1>
-                    <button
-                        className="ml-auto border py-1 px-3 text-blue-500 cursor-pointer"
-                        onClick={() => setEditMode(true)}
-                    >
-                        Edit
-                    </button>
+                    <div className="relative">
+                        <button
+                            className="border p-1 text-blue-500 cursor-pointer"
+                            onClick={() => setIsMenuOpen(prev => !prev)}
+                        >
+                            <BsThreeDotsVertical />
+                        </button>
+                        
+                        {isMenuOpen && (
+                            <div className="text-black w-45 right-0 shadow-lg rounded-md bg-white text-left p-2 absolute z-9999">
+                                <ul className="list-none">
+                                    <li
+                                        className="flex items-center gap-1 p-1 hover:bg-blue-50 hover:text-blue-500 cursor-pointer"
+                                        onClick={() => setEditMode(true)}
+                                    >
+                                        <MdEdit/>
+                                        <span>Edit</span>
+                                    </li>
+                                    <li
+                                        className="flex items-center gap-1 p-1 border-t hover:bg-blue-50 hover:text-blue-500 cursor-pointer"
+                                        onClick={handleOpenAddFundModal}
+                                    >
+                                        <FiPlusCircle/>
+                                        <span>Add Fund</span>
+                                    </li>
+                                    <li
+                                        className="flex items-center gap-1 p-1 border-b hover:bg-blue-50 hover:text-blue-500 cursor-pointer"
+                                        onClick={handleOpenWithdrawalFundModal}
+                                    >
+                                        <FiMinusCircle/>
+                                        <span>Withdrawal Fund</span>
+                                    </li>
+                                </ul>
+
+                            </div>
+                        )}
+                    </div>
+
                 </div>
                 <div className="px-4 py-2 text-black">
                     <h1 className="text-3xl font-bold text-black my-5">{selectedGoalItem.goal_name}</h1>
@@ -32,7 +70,7 @@ export default function DetailGoalPanel({ selectedGoalItem, setEditMode }) {
 
                     <div className="flex items-center justify-center gap-2 mt-5 hover:scale-125 transition-scale duration-500">
                         <RiSparkling2Fill className="text-blue-500"/>
-                        <span className="text-black">You need to save <b>${goalMonthlySaving}</b> this month</span>
+                        <span className="text-black">You need to save <b>${goalMonthlySaving}</b> every month</span>
                     </div>
 
                     <span className="inline-block h-px w-full bg-gray-300 my-5"></span>
@@ -58,16 +96,16 @@ export default function DetailGoalPanel({ selectedGoalItem, setEditMode }) {
 
                     <div>
                         <h3 className="text-xl font-bold mb-2">Contributions</h3>
-                        {selectedGoalItem.contributions.map((item) => (
-                            <div
-                                className="grid grid-cols-2 gap-y-1"
-                                key={item.date}
-                            >
-                                <span className=" font-medium">{item.date}</span>
-                                <span className="text-right font-medium">${item.amount}</span>
-                            </div>
-                        ))}
-
+                            {Object.entries(selectedGoalItem.contributions).map(([accountId, {name, amount}]) => (
+                                <div
+                                    className="grid grid-cols-2 mb-1"
+                                    key={accountId}
+                                >
+                                    <span className="text-gray-400 font-medium">{name}</span>
+                                    <span className="text-right font-medium">${amount}</span>
+                                </div>
+                            ))
+                            }
                     </div>
                 </div>
             </div>
