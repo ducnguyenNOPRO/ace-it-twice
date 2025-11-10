@@ -54,7 +54,7 @@ viewBox,
                 type="number"
                 min="0"
                 value={dailyBudgetAmount}
-                title="Daily target_amount"
+                title="Daily Budget"
                 onChange={(e) => {
                     const val = e.target.value;
                     if (val === "" || Number(val) >= 0) {
@@ -82,7 +82,7 @@ viewBox,
                     cursor: "pointer",
                     padding: "0 10px",
                 }}
-                title="Daily target_amount"
+                title="Daily Budget"
                 onClick={() => {
                     setEditMode(true);
                 }}
@@ -215,7 +215,7 @@ export default function DetailCategoryPanel(
     return (
         <div className="flex-1">
             <div className="flex items-center h-12 px-10 border-b border-gray-300 p-2">
-                <h1 className="text-2xl text-black font-medium">
+                <h1 className="text-3xl lg:text-2xl text-black font-medium">
                     Budget
                 </h1>
                 {!editMode ? (

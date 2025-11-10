@@ -156,7 +156,7 @@ export default function AddFundModal({ open, onClose, selectedGoalItem, setSelec
                         Close
                     </Button>
                     <Button type="submit">
-                        Add
+                        Withdrawal
                     </Button>
                 </DialogActions>
             </form>

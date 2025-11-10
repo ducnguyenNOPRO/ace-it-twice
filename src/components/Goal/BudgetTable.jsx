@@ -32,10 +32,10 @@ export default function BudgetTable(
         setSelectedCategoryItem(null);
     }
     return (
-        <div className="w-full mt-4 border-t">
+        <div className="mx-5 mt-4 overflow-auto">
             <table className="w-full border-collapse">
                 <thead>
-                    <tr className="text-left border-b font-semibold text-lg bg-blue-100">
+                    <tr className="text-left border font-semibold text-lg bg-blue-100">
                         <th className="gap-2 py-2 px-4 w-[30%]">
                             <div className="flex items-center gap-1">
                                 {isShowGoalDataRow
@@ -95,7 +95,7 @@ export default function BudgetTable(
                     </tbody>
                 }
                 <thead>
-                    <tr className="text-left border-b border-t font-semibold text-lg bg-blue-100">
+                    <tr className="text-left border font-semibold text-lg bg-blue-100">
                         <th className="gap-2 py-2 px-4 w-[30%] ">
                             <div className="flex items-center gap-1">
                                 {isShowCategoryDataRow

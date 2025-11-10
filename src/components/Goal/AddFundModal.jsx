@@ -28,20 +28,30 @@ export default function AddFundModal({ open, onClose, itemId, selectedGoalItem, 
     
     const validateInput = (data) => {
         let newErrors = {};
-        const account = accounts.find(a => a.account_id === data.linked_account)
+        const account = accounts.find(a => a.account_id === data.linked_account);
 
         if (!data.linked_account) {
-            newErrors.linked_account = "Please an account";
-        }
-
-        if (!data.amount) {
-            newErrors.amount = "Amount is required"
-        } else if (isNaN(Number(data.amount))) {
-            newErrors.amount = "Amount must be a number"
-        } else if (Number(data.amount) < 0) {
-            newErrors.amount = "Amount muse be positive"
-        } else if (Number(data.amount) > account.balances.available) {
-            newErrors.amount = "Amount must be less than available balances";
+            newErrors.linked_account = "Please select an account";
+        } else if (data.linked_account === "Other") {
+            // handle the "Other" case — maybe skip balance validation
+            if (!data.amount) {
+                newErrors.amount = "Amount is required";
+            } else if (isNaN(Number(data.amount))) {
+                newErrors.amount = "Amount must be a number";
+            } else if (Number(data.amount) < 0) {
+                newErrors.amount = "Amount must be positive";
+            }
+        } else {
+        // normal validation when linked to a real account
+            if (!data.amount) {
+                newErrors.amount = "Amount is required";
+            } else if (isNaN(Number(data.amount))) {
+                newErrors.amount = "Amount must be a number";
+            } else if (Number(data.amount) < 0) {
+                newErrors.amount = "Amount must be positive";
+            } else if (Number(data.amount) > account?.balances?.available) {
+                newErrors.amount = "Amount must be less than available balance";
+            }
         }
 
         setErrors(newErrors);
@@ -62,10 +72,10 @@ export default function AddFundModal({ open, onClose, itemId, selectedGoalItem, 
         const isValidated = validateInput(formValues); 
         if (!isValidated) return;
 
-        const account = accounts.find(a => a.account_id === formValues.linked_account )
+        const account = accounts.find(a => a.account_id === formValues.linked_account)
 
         const goalToUpdate = {
-            accountName: account.name,
+            accountName: account?.name ?? "Other",
             savedAmount: selectedGoalItem.saved_amount,
             targetAmount: selectedGoalItem.target_amount,
             fund: Number(formValues.amount),

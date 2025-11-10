@@ -15,7 +15,7 @@ export default function Topbar({currentDate, setCurrentDate}) {
     };
     return (
         <>
-            <div className="flex items-center gap-x-10 px-10 mb-5 h-12 border-b border-gray-300">
+            <div className="mx-5 flex items-center gap-x-10 px-10 mb-5 py-2 border-b border-gray-300">
                 <h1 className="text-2xl text-black font-medium">
                     My Budget
                 </h1>
@@ -30,6 +30,7 @@ export default function Topbar({currentDate, setCurrentDate}) {
                         <FaArrowCircleRight className="text-blue-500 hover:scale-150 cursor-pointer"/>
                     </button>
                 </div>
+                
             </div>
         </>
     )

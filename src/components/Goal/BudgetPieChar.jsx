@@ -1,7 +1,22 @@
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 const BudgetPieChart = memo(({ currentDate, categorySpendingData, categoryBudgetList }) => {
+    const [showLegend, setShowLegend] = useState(true);
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 640) {
+                setShowLegend(false);
+            } else {
+                setShowLegend(true);
+            }
+        };
+
+        handleResize(); // run on mount
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, [])
+
     const formattedMonth = currentDate.toLocaleString('en-US', {
         month: 'short',
     });
@@ -15,9 +30,6 @@ const BudgetPieChart = memo(({ currentDate, categorySpendingData, categoryBudget
         name: categoryName,
         value: Math.round(data.total) || 0
     }));
-
-    console.log(categorySpendingData)
-    console.log(pieData)
 
 
     const categories = [
@@ -61,7 +73,8 @@ const BudgetPieChart = memo(({ currentDate, categorySpendingData, categoryBudget
         ];
 
     return (
-        <div className="flex items-center justify-center px-6 gap-3 border-2 border-gray-300 rounded-lg mx-5 p-2">
+        <div className="flex items-center justify-center gap-3 mx-5 border-2 border-gray-300 rounded-lg
+            ">
             <div>
                 <div>
                     <p className="font-medium text-lg">${totalSpendingThisMonth}</p>
@@ -83,7 +96,6 @@ const BudgetPieChart = memo(({ currentDate, categorySpendingData, categoryBudget
                         cx="50%"
                         cy="50%"
                         fill="#8884d8"
-                        label
                     >
                         {pieData.map((entry, index) => {
                             const colorIndex = categories.indexOf(entry.name)
@@ -92,10 +104,9 @@ const BudgetPieChart = memo(({ currentDate, categorySpendingData, categoryBudget
                         })}
                     </Pie>
                     <Tooltip formatter={(value) => `$${value}`} />
-                    <Legend layout="vertical" verticalAlign="middle" align="right"/>
+                    {showLegend && <Legend layout="vertical" verticalAlign="middle" align="right" />}
                 </PieChart>
             </ResponsiveContainer>
-
         </div>
     )
 })

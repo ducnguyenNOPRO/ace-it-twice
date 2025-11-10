@@ -82,9 +82,6 @@ export default function Transaction() {
         refetchOnReconnect: false,
         enabled: !!itemId
       }))
-  
-  console.log(queryClient.getQueryCache().getAll())
-  console.log("filter", addFilterToUI)
   const [isDeleting, setIsDeleting] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -275,11 +272,11 @@ export default function Transaction() {
           <Sidebar />     
           
           {/* Page Content*/}
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 mx-5 overflow-auto">
             {/* Topbar*/}
             <Topbar pageName='Transaction' userFirstInitial={currentUser.displayName?.charAt(0)} />             
             
-            <div className="flex items-center mb-2 mx-2 gap-3">
+            <div className="flex items-center mb-2 gap-3">
               {/* Search transaction */}
               <SearchTransaction
                 setPaginationModel={setPaginationModel}

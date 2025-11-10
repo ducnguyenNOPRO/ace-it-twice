@@ -9,11 +9,20 @@ import { FiMinusCircle } from "react-icons/fi";
 export default function DetailGoalPanel({selectedGoalItem, setEditMode, handleOpenAddFundModal, handleOpenWithdrawalFundModal }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const goalMonthlySaving = useGoalMonthlySaving(selectedGoalItem);
+
+    const handleOpenAddModal = () => {
+        setIsMenuOpen(false);
+        handleOpenAddFundModal();
+    }
+    const handleOpenWithdrawalModal = () => {
+        setIsMenuOpen(false);
+        handleOpenWithdrawalFundModal();
+    }
     return (
         <>
             <div className="flex-1">
                 <div className="flex items-center justify-between h-12 px-10 border-b border-gray-300 p-2">
-                    <h1 className="text-2xl text-black font-medium">
+                    <h1 className="text-3xl lg:text-2xl text-black font-medium">
                         Goal
                     </h1>
                     <div className="relative">
@@ -36,14 +45,14 @@ export default function DetailGoalPanel({selectedGoalItem, setEditMode, handleOp
                                     </li>
                                     <li
                                         className="flex items-center gap-1 p-1 border-t hover:bg-blue-50 hover:text-blue-500 cursor-pointer"
-                                        onClick={handleOpenAddFundModal}
+                                        onClick={handleOpenAddModal}
                                     >
                                         <FiPlusCircle/>
                                         <span>Add Fund</span>
                                     </li>
                                     <li
                                         className="flex items-center gap-1 p-1 border-b hover:bg-blue-50 hover:text-blue-500 cursor-pointer"
-                                        onClick={handleOpenWithdrawalFundModal}
+                                        onClick={handleOpenWithdrawalModal}
                                     >
                                         <FiMinusCircle/>
                                         <span>Withdrawal Fund</span>
@@ -96,16 +105,20 @@ export default function DetailGoalPanel({selectedGoalItem, setEditMode, handleOp
 
                     <div>
                         <h3 className="text-xl font-bold mb-2">Contributions</h3>
-                            {Object.entries(selectedGoalItem.contributions).map(([accountId, {name, amount}]) => (
-                                <div
-                                    className="grid grid-cols-2 mb-1"
-                                    key={accountId}
-                                >
-                                    <span className="text-gray-400 font-medium">{name}</span>
-                                    <span className="text-right font-medium">${amount}</span>
-                                </div>
-                            ))
+                        {Object.entries(selectedGoalItem.contributions).map(([accountId, { name, amount }]) => {
+                            if (amount > 0) {
+                                return (
+                                    <div
+                                        className="grid grid-cols-2 mb-1"
+                                        key={accountId}
+                                    >
+                                        <span className="text-gray-400 font-medium">{name}</span>
+                                        <span className="text-right font-medium">${amount}</span>
+                                    </div>
+                                );
                             }
+                            return null; // ensures React always returns something
+                        })}
                     </div>
                 </div>
             </div>

@@ -100,7 +100,7 @@ export default function AddGoalModal({ open, onClose, itemId }) {
         const savedAmount = Number(formValues.saved_amount);
         const linkedAccount = {
             id: formValues.linked_account,
-            name: account.name
+            name: account?.name ?? "Other"
         }
 
         const goalToAdd = {

@@ -120,31 +120,18 @@ export default function Goal() {
     }
     return (
         <>
-            <div className="flex h-screen text-gray-500">
+            <div className="flex h-screen text-gray-500 relative">
                 {/* Sidebar */}
                 <Sidebar />     
                 
                 {/* Page Content*/}
-                <div className="flex-1 flex overflow-auto">
-                    <div className="flex flex-col w-[60%] border-r">
+                <div className="flex-1 flex flex-col lg:flex-row overflow-auto">
+                    <div className="flex flex-col w-full lg:w-[60%] lg:border-r">
                         {/* Topbar*/}
                         <Topbar currentDate={currentDate} setCurrentDate={setCurrentDate} />
             
                         {/* Main Content */}
                         <main className="text-black mb-10">
-                                {/* <div className="relative border w-fit rounded-md border-blue-500 px-7 py-5 text-center">
-                                    <p className="uppercase">Total Goal Savings</p>
-                                    <p className="font-bold text-3xl">${totalGoalsSaving}</p>
-                                </div>
-                                <div className="border w-fit rounded-md border-blue-500 px-7 py-5 text-center">
-                                    <p className="uppercase">Total Buget</p>
-                                    <p className="font-bold text-3xl">$5000</p>
-                                </div>
-                                <div className="border w-fit rounded-md border-blue-500 px-7 py-5 text-center">
-                                    <p>Total Spent</p>
-                                    <p className="font-bold text-3xl">$4000</p>
-                                </div> */}
-                            
                             <BudgetPieChart
                                 currentDate={currentDate}
                                 categorySpendingData={categorySpendingData}
@@ -163,38 +150,6 @@ export default function Goal() {
                             />
 
                         </main>
-                        {isAddModalOpen && (
-                            <AddGoalModal
-                                open={isAddModalOpen}
-                                onClose={handleCloseAddModal}
-                                itemId={itemId}
-                            />
-                        )}
-                        {isAddCategoryModelOpen && (
-                            <AddCategoryModal
-                                open={isAddCategoryModelOpen}
-                                onClose={handleCloseCategoryModal}
-                                currentDate={currentDate}
-                            />
-                        )}
-                        {isAddFundModalOpen && selectedGoalItem && (
-                            <AddFundModal
-                                open={isAddFundModalOpen}
-                                onClose={handleCloseAddFundModal}
-                                itemId={itemId}
-                                selectedGoalItem={selectedGoalItem}
-                                setSelectedGoalItem={setSelectedGoalItem}
-                            />
-                        )}
-                        {isWithdrawalFundModalOpen && selectedGoalItem && (
-                            <WithdrawalFundModal
-                                open={isWithdrawalFundModalOpen}
-                                onClose={handleCloseWithdrawalFundModal}
-                                itemId={itemId}
-                                selectedGoalItem={selectedGoalItem}
-                                setSelectedGoalItem={setSelectedGoalItem}
-                            />
-                        )}
                     </div>
 
                     {/* Detail Panel for Goal item */}
@@ -203,8 +158,8 @@ export default function Goal() {
                             itemId={itemId}
                             selectedGoalItem={selectedGoalItem}
                             setEditMode={setEditMode}
-                        handleOpenAddFundModal={handleOpenAddFundModal}
-                        handleOpenWithdrawalFundModal={handleOpenWithdrawalFundModal}
+                            handleOpenAddFundModal={handleOpenAddFundModal}
+                            handleOpenWithdrawalFundModal={handleOpenWithdrawalFundModal}
                         />
                     }
 
@@ -231,6 +186,38 @@ export default function Goal() {
                         </div>
                     }
                 </div>
+                 {isAddModalOpen && (
+                    <AddGoalModal
+                        open={isAddModalOpen}
+                        onClose={handleCloseAddModal}
+                        itemId={itemId}
+                    />
+                )}
+                {isAddCategoryModelOpen && (
+                    <AddCategoryModal
+                        open={isAddCategoryModelOpen}
+                        onClose={handleCloseCategoryModal}
+                        currentDate={currentDate}
+                    />
+                )}
+                {isAddFundModalOpen && selectedGoalItem && (
+                    <AddFundModal
+                        open={isAddFundModalOpen}
+                        onClose={handleCloseAddFundModal}
+                        itemId={itemId}
+                        selectedGoalItem={selectedGoalItem}
+                        setSelectedGoalItem={setSelectedGoalItem}
+                    />
+                )}
+                {isWithdrawalFundModalOpen && selectedGoalItem && (
+                    <WithdrawalFundModal
+                        open={isWithdrawalFundModalOpen}
+                        onClose={handleCloseWithdrawalFundModal}
+                        itemId={itemId}
+                        selectedGoalItem={selectedGoalItem}
+                        setSelectedGoalItem={setSelectedGoalItem}
+                    />
+                )}
             </div>
         </>
     )

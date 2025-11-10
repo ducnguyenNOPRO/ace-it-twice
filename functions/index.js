@@ -845,11 +845,11 @@ exports.addGoalFund= onCall(async (request) => {
 
   const uid = request.auth.uid;
   const goalToUpdateId = request.data.goalToUpdateId;  // budget Id
-  const {accountName, savedAmount, targetAmount, fund, accountId} = request.data.goalData;
+  const { accountName, savedAmount, targetAmount, fund, accountId } = request.data.goalData; 
   if (!goalToUpdateId) {
     throw new HttpsError("invalid-argument", "Missing goal Id");
   }
-  if (!accountName || !savedAmount || !targetAmount || !fund || !accountId) {
+  if (!accountName || savedAmount < 0 || !targetAmount || !fund || !accountId) {
     throw new HttpsError("invalid-argument", "Missing goal data");
   }
 
@@ -866,10 +866,10 @@ exports.addGoalFund= onCall(async (request) => {
     
     const update = {
       [`contributions.${accountId}`]: {
-        amount: newSavedAmount,
+        amount: FieldValue.increment(fund),
         name: accountName
       },
-      saved_amount: FieldValue.increment(fund),
+      saved_amount: newSavedAmount,
       progress
     }
 
