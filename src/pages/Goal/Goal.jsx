@@ -7,7 +7,7 @@ import WithdrawalFundModal from "../../components/Goal/WithdrawalFundModal";
 import BudgetTable from "../../components/Goal/BudgetTable";
 import { useAuth } from "../../contexts/authContext";
 import { useItemId } from '../../hooks/useItemId'
-import { createBudgetsQueryOptions, createGoalsQueryOptions, createMonthlyTransactionsQueryOptions } from "../../util/createQueryOptions";
+import { createBudgetsQueryOptions, createAccountsQueryOptions, createGoalsQueryOptions, createMonthlyTransactionsQueryOptions } from "../../util/createQueryOptions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import EditGoalModal from "../../components/Goal/EditModal";
 import DetailGoalPanel from "../../components/Goal/DetailGoalPanel";
@@ -81,9 +81,15 @@ export default function Goal() {
         setEditMode(false);
     }, [selectedGoalItem]);
 
-    console.log(queryClient.getQueryCache().getAll())
-
-    const handleOpenAddModal = () => {
+    useEffect(() => {
+        queryClient.prefetchQuery(
+            createAccountsQueryOptions(
+                { itemId },
+                { staleTime: Infinity, refetchOnWindowFocus: false, refetchOnReconnect: false }
+            ));
+    }, [itemId, queryClient])
+     console.log(queryClient.getQueryCache().getAll())
+    const handleOpenAddModal = async () => {
         setIsAddModalOpen(true);
     }
 

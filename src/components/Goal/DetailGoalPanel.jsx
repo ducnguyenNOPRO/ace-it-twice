@@ -18,6 +18,8 @@ export default function DetailGoalPanel({selectedGoalItem, setEditMode, handleOp
         setIsMenuOpen(false);
         handleOpenWithdrawalFundModal();
     }
+
+    const progress = (selectedGoalItem.saved_amount / (selectedGoalItem.target_amount || 0) * 100);
     return (
         <>
             <div className="flex-1">
@@ -68,11 +70,15 @@ export default function DetailGoalPanel({selectedGoalItem, setEditMode, handleOp
                     <h1 className="text-3xl font-bold text-black my-5">{selectedGoalItem.goal_name}</h1>
 
                     <div className="flex flex-col gap-1 my-5">
-                        <p>Progress ({(selectedGoalItem.progress).toFixed(2)}%)</p>
+                        <p>Progress ({(progress).toFixed(2)}%)</p>
                         <div className="bg-gray-200 rounded-full h-2">
                             <div
-                                className="bg-yellow-500 h-2 rounded-full"
-                                style={{ width: `${(selectedGoalItem.progress)}%` }}
+                                className={`h-2 rounded-full ${progress < 100 ? "bg-yellow-500" : "bg-green-500"}`}
+                                style={
+                                    {
+                                        width: `${Math.min(progress, 100)}%`
+                                    }
+                                }
                             ></div>
                         </div>
                     </div>

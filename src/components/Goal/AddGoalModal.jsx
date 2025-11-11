@@ -7,25 +7,20 @@ import Button from "@mui/material/Button"
 import MenuItem from "@mui/material/MenuItem"
 import { useState } from "react"
 import { addGoal } from "../../api/goal"
-import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query"
-import { createAccountsQueryOptions } from "../../util/createQueryOptions";
 import formatDate from "../../util/formatDate"
+import useLocalBalance from "../../hooks/useLocalBalance"
 
 
 export default function AddGoalModal({ open, onClose, itemId }) {
     const queryClient = useQueryClient();
     const [errors, setErrors] = useState({});
-    const { data: accounts = [], isLoading: loadingAccs } = useQuery(
-            createAccountsQueryOptions({ itemId },
-            {
-                staleTime: Infinity,
-                refetchOnWindowFocus: false,
-                refetchOnReconnect: false
-                }))
+    
+    const localBalance = useLocalBalance(itemId);
 
     const validateInput = (data) => {
         const newErrors = {};
+        const account = localBalance.find(a => a.accountId === data.linked_account);
 
         if (!data.goal_name) {
             newErrors.goal_name = "Goal name is required";
@@ -37,6 +32,25 @@ export default function AddGoalModal({ open, onClose, itemId }) {
 
         if (!data.linked_account) {
             newErrors.linked_account = "Please choose an account";
+        } else if (data.linked_account === "Other") {
+            // handle the "Other" case — maybe skip balance validation
+            if (!data.saved_amount) {
+                newErrors.saved_amount = "Amount is required";
+            } else if (isNaN(Number(data.saved_amount))) {
+                newErrors.saved_amount = "Amount must be a number";
+            } else if (Number(data.saved_amount) < 0) {
+                newErrors.saved_amount = "Amount must be positive";
+            }
+        } else {
+            if (!data.saved_amount) {
+                newErrors.saved_amount = "Saved amount is required";
+            } else if (isNaN(Number(data.saved_amount))) {
+                newErrors.saved_amount = "Saved amount must be a number";
+            } else if (Number(data.saved_amount) > Number(data.target_amount)) {
+                newErrors.saved_amount = "Saved amount must be less than target amount";
+            } else if (Number(data.saved_amount) > account.computedBalance) {
+                newErrors.saved_amount = "Saved amount must be less than available balance"
+            }
         }
 
         if (!data.target_amount) {
@@ -47,13 +61,7 @@ export default function AddGoalModal({ open, onClose, itemId }) {
             newErrors.target_amount = "Amount must be greater than 0";
         }
 
-        if (!data.saved_amount) {
-            newErrors.saved_amount = "Saved amount is required";
-        } else if (isNaN(Number(data.saved_amount))) {
-            newErrors.saved_amount = "Saved amount must be a number";
-        } else if (Number(data.saved_amount) > Number(data.target_amount)) {
-            newErrors.saved_amount = "Saved amount should be less than target amount";
-        }
+
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -76,7 +84,7 @@ export default function AddGoalModal({ open, onClose, itemId }) {
             return;
         }
 
-        const account = accounts.find(a => a.account_id === formValues.linked_account)
+        const account = localBalance.find(a => a.accountId === formValues.linked_account)
 
         // Get local date not UTC
         const [year, month, day] = formValues.target_date.split("-");
@@ -99,8 +107,8 @@ export default function AddGoalModal({ open, onClose, itemId }) {
         const targetAmount = Number(formValues.target_amount);
         const savedAmount = Number(formValues.saved_amount);
         const linkedAccount = {
-            id: formValues.linked_account,
-            name: account?.name ?? "Other"
+            id: account?.accountId ?? "Other",
+            name: account?.accountName ?? "Other"
         }
 
         const goalToAdd = {
@@ -116,16 +124,6 @@ export default function AddGoalModal({ open, onClose, itemId }) {
 
         await addGoal(goalToAdd, linkedAccount, onClose);
         refetchGoals();
-    }
-
-    if (loadingAccs) {
-        return (
-            <Dialog open={open} onClose={onClose}>
-                <DialogContent>
-                    <div>Loading...</div>
-                </DialogContent>
-            </Dialog>
-        );
     }
     return (
         <Dialog open={open} onClose={onClose}>
@@ -192,10 +190,10 @@ export default function AddGoalModal({ open, onClose, itemId }) {
                         helperText={errors.linked_account}
                         fullWidth
                     >
-                        {accounts.map((account) => (
+                        {localBalance.map((account) => (
                             <MenuItem
-                                key={account.account_id}
-                                value={String(account.account_id)}
+                                key={account.accountId}
+                                value={String(account.accountId)}
                                 sx={{
                                     '&:hover': {
                                         backgroundColor: "#def6f8",
@@ -203,7 +201,7 @@ export default function AddGoalModal({ open, onClose, itemId }) {
                                     }
                                 }}
                             >
-                                {account.name} - {account.mask} - balance: {account.balances.available}
+                                {account.accountName} - balance: {account.computedBalance}
                             </MenuItem>
                         ))}
                         <MenuItem

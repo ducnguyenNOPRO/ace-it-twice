@@ -53,9 +53,10 @@ export function createMonthlyTransactionsQueryOptions(
 }
 
 export function createAccountsQueryOptions(params = {}, options = {}) {
+    const { itemId } = params;
     return queryOptions({
         ...options, 
-        queryKey: ["accounts", params],
+        queryKey: ["accounts", itemId],
         queryFn: () => getAccounts(params),
     })
 }

@@ -6,7 +6,6 @@ const prettyMapCategory = require('./constants/prettyMapCategory');
 const { validateFilters } = require('./utils/validateFilters')
 const { verifyPlaidWebhook } = require('./utils/validatePlaidWebhook');
 const { format } = require("date-fns");
-const { increment } = require("firebase/firestore");
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -54,6 +53,50 @@ exports.createLinkToken = onCall(async (request) => {
       throw new HttpsError("internal", error.message || "Unknown error with Plaid");
   }
 });
+
+async function saveAccountData(uid, itemId, accounts) {
+  console.log(`]avingAccount] data for user ${uid}, itemId ${itemId}`)
+
+  try {
+    // Get access token from firestore
+    const plaidDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId);
+    
+    const plaidDoc = await plaidDocRef.get();
+    
+    if (!plaidDoc.exists) {
+      throw new HttpsError("not-found", "Plaid item not found.");
+    }
+
+    // Store accounts in Firestore
+    const batch = admin.firestore().batch();  // Used to write multiple documents at once
+    const accountsRef = plaidDocRef.collection("accounts")
+    
+    accounts.forEach(account => {
+      const docRef = accountsRef.doc(account.account_id);
+      batch.set(docRef, {
+        account_id: account.account_id,
+        name: account.name,
+        official_name: account.official_name,
+        type: account.type,
+        subtype: account.subtype,
+        mask: account.mask,
+        balances: account.balances,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+
+    await batch.commit();
+
+    return { success: true, message: "Accounts synced"};
+  }
+  catch (error) {
+    throw new HttpsError("internal", "Fail to save account.");
+  }
+}
 
 // Fetch transactins from Plaid and save to DB
 async function syncPlaidTransaction(uid, itemId) {
@@ -154,6 +197,9 @@ async function syncPlaidTransaction(uid, itemId) {
     });
 
     await batch.commit();
+
+    // Save Account data
+    saveAccountData(uid, itemId, response.data.accounts);
 
     await plaidDocRef.update({ cursor });
 
@@ -778,7 +824,7 @@ exports.getGoals = onCall(async (request) => {
       .doc(uid)
       .collection('goals');
     
-    const query = goalsRef.orderBy("progress", "desc");
+    const query = goalsRef.orderBy("target_amount", "desc");
     const snapshot = await query.get();
 
     const goals = snapshot.docs.map(doc => ({
@@ -821,7 +867,6 @@ exports.addGoal = onCall(async (request) => {
     const newGoalDocData = {
       ...goalData,
       goal_id: newGoalDocRef.id,
-      progress: goalData.saved_amount / goalData.target_amount * 100,
       contributions: {
         [id]: {
           amount: goalData.saved_amount,
@@ -845,13 +890,14 @@ exports.addGoalFund= onCall(async (request) => {
 
   const uid = request.auth.uid;
   const goalToUpdateId = request.data.goalToUpdateId;  // budget Id
-  const { accountName, savedAmount, targetAmount, fund, accountId } = request.data.goalData; 
+  const { accountName, fund, accountId } = request.data.goalData; 
   if (!goalToUpdateId) {
     throw new HttpsError("invalid-argument", "Missing goal Id");
   }
-  if (!accountName || savedAmount < 0 || !targetAmount || !fund || !accountId) {
+  if (!accountName || !fund || !accountId) {
     throw new HttpsError("invalid-argument", "Missing goal data");
   }
+
 
   try {
     // Get the Bank document using itemId
@@ -860,17 +906,11 @@ exports.addGoalFund= onCall(async (request) => {
       .doc(uid)
       .collection("goals")
       .doc(goalToUpdateId);
-
-    const newSavedAmount = savedAmount + fund;
-    const progress = newSavedAmount / targetAmount * 100;
     
     const update = {
-      [`contributions.${accountId}`]: {
-        amount: FieldValue.increment(fund),
-        name: accountName
-      },
-      saved_amount: newSavedAmount,
-      progress
+      [`contributions.${accountId}.amount`]: FieldValue.increment(fund),
+      [`contributions.${accountId}.name`]: accountName,
+      saved_amount: FieldValue.increment(fund),
     }
 
     await goalDocRef.update(update);
@@ -888,11 +928,11 @@ exports.withdrawalGoalFund= onCall(async (request) => {
 
   const uid = request.auth.uid;
   const goalToUpdateId = request.data.goalToUpdateId;  // budget Id
-  const {savedAmount, targetAmount, fund, accountId} = request.data.goalData;
+  const {targetAmount, fund, accountId} = request.data.goalData;
   if (!goalToUpdateId) {
     throw new HttpsError("invalid-argument", "Missing goal Id");
   }
-  if (!savedAmount || !targetAmount || !fund || !accountId) {
+  if (!targetAmount || !fund || !accountId) {
     throw new HttpsError("invalid-argument", "Missing goal data");
   }
 
@@ -903,14 +943,10 @@ exports.withdrawalGoalFund= onCall(async (request) => {
       .doc(uid)
       .collection("goals")
       .doc(goalToUpdateId);
-
-    const newSavedAmount = savedAmount - fund;
-    const progress = newSavedAmount / targetAmount * 100;
     
     const update = {
       [`contributions.${accountId}.amount`]: FieldValue.increment(fund * -1),
-      saved_amount: newSavedAmount,
-      progress
+      saved_amount: FieldValue.increment(fund * -1)
     }
 
     await goalDocRef.update(update);

@@ -73,25 +73,31 @@ export default function BudgetTable(
                 </thead>
                 {isShowGoalDataRow && 
                     <tbody>
-                        {goalsList.map((goal) => (
-                            <tr
-                                key={goal.goal_id}
-                                className="hover:bg-blue-50"
-                                onClick={() => handleOpenGoalDetailPanel(goal)}
-                            >
-                                <td className="py-2 px-4">{goal.goal_name}</td>
-                                <td className="py-2 px-4 text-right font-medium tracking-wide">${Math.round(goal.saved_amount)}</td>
-                                <td className="py-2 px-4">
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                        <div
-                                            className="bg-green-500 h-2 rounded-full"
-                                            style={{ width: `${(goal.progress)}%` }}
-                                        ></div>
-                                    </div>
-                                </td>
-                                <td className="py-2 px-4 font-medium tracking-wide">${Math.round(goal.target_amount)}</td>
-                            </tr>
-                        ))}
+                        {goalsList.map((goal) => {
+                            const progress = (goal.saved_amount / (goal.target_amount || 0)) * 100;
+                            return (
+                                <tr
+                                    key={goal.goal_id}
+                                    className="hover:bg-blue-50"
+                                    onClick={() => handleOpenGoalDetailPanel(goal)}
+                                >
+                                    <td className="py-2 px-4">{goal.goal_name}</td>
+                                    <td className="py-2 px-4 text-right font-medium tracking-wide">${Math.round(goal.saved_amount)}</td>
+                                    <td className="py-2 px-4">
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div
+                                                className={`h-2 rounded-full ${progress < 100 ? "bg-yellow-500" : "bg-green-500"}`}
+                                                style={
+                                                    {
+                                                        width: `${Math.min(progress, 100)}%`
+                                                    }
+                                                }
+                                            ></div>
+                                        </div>
+                                    </td>
+                                    <td className="py-2 px-4 font-medium tracking-wide">${Math.round(goal.target_amount)}</td>
+                                </tr>
+                        )})}
                     </tbody>
                 }
                 <thead>
