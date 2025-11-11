@@ -102,7 +102,17 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
     }
 
     return (
-        <Dialog open={open} onClose={onClose}>
+        <Dialog
+            open={open}
+            onClose={onClose}
+            slotProps={{
+                paper: {
+                    sx: {
+                        width: 500
+                    }
+                }
+            }}
+        >
             <form onSubmit={handleSubmit}>
                 <DialogTitle>Add New Budget</DialogTitle>
                 <DialogContent dividers>

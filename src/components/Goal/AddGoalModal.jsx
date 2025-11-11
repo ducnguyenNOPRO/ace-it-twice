@@ -22,7 +22,7 @@ export default function AddGoalModal({ open, onClose, itemId }) {
                 staleTime: Infinity,
                 refetchOnWindowFocus: false,
                 refetchOnReconnect: false
-            }))
+                }))
 
     const validateInput = (data) => {
         const newErrors = {};
@@ -76,6 +76,8 @@ export default function AddGoalModal({ open, onClose, itemId }) {
             return;
         }
 
+        const account = accounts.find(a => a.account_id === formValues.linked_account)
+
         // Get local date not UTC
         const [year, month, day] = formValues.target_date.split("-");
         const targetDate = new Date(year, month - 1, day); // months are 0-indexed
@@ -96,21 +98,23 @@ export default function AddGoalModal({ open, onClose, itemId }) {
 
         const targetAmount = Number(formValues.target_amount);
         const savedAmount = Number(formValues.saved_amount);
+        const linkedAccount = {
+            id: formValues.linked_account,
+            name: account?.name ?? "Other"
+        }
 
         const goalToAdd = {
-            ...formValues,
+            goal_name: formValues.goal_name,
             target_amount: targetAmount,
             saved_amount: savedAmount,
             start_date: startDate,
             start_date_formatted: startDateFormatted,
+            target_date: formValues.target_date,
             target_date_formatted: targetDateFormatted,
-            contributions: [{
-                date: startDate, amount: savedAmount
-            }],
             iso_currency_code: "USD",
         }
 
-        await addGoal(goalToAdd, onClose);
+        await addGoal(goalToAdd, linkedAccount, onClose);
         refetchGoals();
     }
 
@@ -174,7 +178,7 @@ export default function AddGoalModal({ open, onClose, itemId }) {
                                 shrink: true
                             }
                         }}
-                        errors={!!errors.target_date}
+                        error={!!errors.target_date}
                         helperText={errors.target_date}
                         fullWidth
                     />
@@ -190,8 +194,8 @@ export default function AddGoalModal({ open, onClose, itemId }) {
                     >
                         {accounts.map((account) => (
                             <MenuItem
-                                key={account.id}
-                                value={account.name}
+                                key={account.account_id}
+                                value={String(account.account_id)}
                                 sx={{
                                     '&:hover': {
                                         backgroundColor: "#def6f8",
@@ -200,7 +204,7 @@ export default function AddGoalModal({ open, onClose, itemId }) {
                                 }}
                             >
                                 {account.name} - {account.mask} - balance: {account.balances.available}
-                        </MenuItem>
+                            </MenuItem>
                         ))}
                         <MenuItem
                             value="Other"

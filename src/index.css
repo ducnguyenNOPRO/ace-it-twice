@@ -1,4 +1,5 @@
 @import "tailwindcss";
+
 .recharts-default-legend li:hover {
   background-color: transparent;
   cursor: default;

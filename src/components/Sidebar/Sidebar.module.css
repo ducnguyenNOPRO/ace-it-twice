@@ -1,7 +1,6 @@
 .sidebarList {
     display: flexbox;
     flex-direction: column;
-    margin-top: 40px;
     padding: 0;
 }
 .sidebarList li{
@@ -9,21 +8,13 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 1rem;
+    font-size: 18px;
     padding: 10px 0px 10px 30px;
     margin-top: 5px;
 }
 
-.sidebarList li:hover, .sidebarList li button:hover {
-    background-color: #ffd966;
-    border-radius: 5%;
-    color: white;
+.sidebarList li:hover {
+    background-color: #e5e7eb;
+    border-radius: 8px;
     cursor: pointer;
-}
-
-@media (max-width: 640px){
-    .sidebarList li{
-        font-size: 0.9rem;
-        padding: 0 0 0 10px;
-    }
 }

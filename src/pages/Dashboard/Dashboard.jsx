@@ -7,7 +7,7 @@ import TransactionHistory from '../../components/TransactionHistory'
 import './Dashboard.css'
 import { useAuth } from '../../contexts/authContext'
 import MonthlySpending from '../../components/Dashboard/MontlySpending'
-import { getMonthlySpendingData, getSpendingDataByCategory } from '../../util/spendingData'
+import { getMonthlySpendingData, getSpendingDataByCategorySorted } from '../../util/spendingData'
 import { useQuery } from '@tanstack/react-query'
 import { createRecentTransactionsQueryOptions, createAccountsQueryOptions, createMonthlyTransactionsQueryOptions} from '../../util/createQueryOptions'
 import { useItemId } from '../../hooks/useItemId'
@@ -51,8 +51,8 @@ export default function Dashboard() {
   //return { "MMM YYYY", totalSpending: int}
   const monthlySpendingData = useMemo(() => getMonthlySpendingData(monthlyTransactions), [monthlyTransactions]);
 
-    //return {totalSpending: int, sortedCategories[{category, total, icon, color}]}
-  const categorySpendingData = useMemo(() => getSpendingDataByCategory(monthlyTransactions), [monthlyTransactions]);
+  
+  const categorySpendingData = useMemo(() => getSpendingDataByCategorySorted(monthlyTransactions), [monthlyTransactions]);
 
   const handlePrev = () => {
     setCurrentIndex(prev => (prev === 0 ? accounts.length - 1 : prev - 1));
@@ -73,13 +73,13 @@ export default function Dashboard() {
         <Sidebar />     
         
         {/* Page Content*/}
-        <div className="flex-1 overflow-auto">
+        <div className="mx-5 flex-1 overflow-auto">
           {/* Topbar*/}
           <Topbar pageName='Dashboard' userFirstInitial={currentUser.displayName?.charAt(0)} />
 
           {/* Main Content */}
-          <main className="px-6 mb-10">
-            <div className="flex flex-wrap justify-between gap-6 w-full p-5 ">
+          <main className="mb-10">
+            <div className="flex flex-col md:flex-row justify-between gap-6 w-full p-5 ">
 
               {/* Card Section */}
               <section className="border border-gray-200 rounded-lg shadow-2xl p-5">
@@ -117,15 +117,15 @@ export default function Dashboard() {
             </div>
 
 
-            <section className="flex flex-wrap gap-6 w-full p-5">
+            <section className="flex flex-col lg:flex-row gap-6 w-full p-5">
               {/* Transaction History */}
-              <div className="w-fit lg:w-1/2 border border-gray-200 rounded-lg shadow-2xl p-6"> 
+              <div className="lg:w-1/2 border border-gray-200 rounded-lg shadow-2xl p-6"> 
                 <TransactionHistory recentTransactions={recentTransactions} />  
               </div>
 
               {/* Top catogories */}
-              <div className="grow md:w-fit border-gray-200 rounded-lg shadow-2xl p-6">
-                        <h1 className="font-semibold text-xl text-black tracking-wider">Top categories</h1>
+              <div className="lg:w-1/2 border-gray-200 rounded-lg shadow-2xl p-6">
+                <h1 className="font-semibold text-xl text-black tracking-wider">Top categories</h1>
                 <TopCategories
                   categorySpendingData={categorySpendingData}
                 />

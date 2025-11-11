@@ -6,6 +6,7 @@ const prettyMapCategory = require('./constants/prettyMapCategory');
 const { validateFilters } = require('./utils/validateFilters')
 const { verifyPlaidWebhook } = require('./utils/validatePlaidWebhook');
 const { format } = require("date-fns");
+const { increment } = require("firebase/firestore");
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -39,7 +40,7 @@ exports.createLinkToken = onCall(async (request) => {
       language: 'en',
       redirect_uri: "http://localhost:5173/Setting",
       country_codes: ['US'],
-      webhook: "https://bright-lions-hug.loca.lt/ace-it-twice/us-central1/plaidWebhook"
+      webhook: "https://myapp.loca.lt/ace-it-twice/us-central1/plaidWebhook"
   };
 
   try {
@@ -211,6 +212,8 @@ exports.plaidWebhook = onRequest(async (req, res) => {
     // Plaid sends a JSON object with:
     // body.webhook_type, body.webhook_code, body.item_id
     const { webhook_code, item_id } = body;
+    console.log(JSON.stringify(req.headers))
+    console.log(JSON.stringify(body));
 
     // Only act on SYNC_UPDATES_AVAILABLE
     if (webhook_code !== "SYNC_UPDATES_AVAILABLE") {
@@ -802,8 +805,9 @@ exports.addGoal = onCall(async (request) => {
 
   const uid = request.auth.uid;
   const goalData = request.data.goalData;
+  const {id, name} = request.data.linkedAccount;
 
-  if (!goalData) {
+  if (!goalData || !id || !name) {
     throw new HttpsError("invalid-argument", "Missing goal data");
   }
 
@@ -817,7 +821,13 @@ exports.addGoal = onCall(async (request) => {
     const newGoalDocData = {
       ...goalData,
       goal_id: newGoalDocRef.id,
-      progress: goalData.saved_amount / goalData.target_amount * 100
+      progress: goalData.saved_amount / goalData.target_amount * 100,
+      contributions: {
+        [id]: {
+          amount: goalData.saved_amount,
+          name: name
+        }
+      }
     }
 
     // Add the transaction
@@ -825,6 +835,89 @@ exports.addGoal = onCall(async (request) => {
     return {success: true, message: `Goal added successfully`}
   } catch (error) {
     throw new HttpsError("internal", "Fail to add transaction")
+  }
+})
+
+exports.addGoalFund= onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const goalToUpdateId = request.data.goalToUpdateId;  // budget Id
+  const { accountName, savedAmount, targetAmount, fund, accountId } = request.data.goalData; 
+  if (!goalToUpdateId) {
+    throw new HttpsError("invalid-argument", "Missing goal Id");
+  }
+  if (!accountName || savedAmount < 0 || !targetAmount || !fund || !accountId) {
+    throw new HttpsError("invalid-argument", "Missing goal data");
+  }
+
+  try {
+    // Get the Bank document using itemId
+    const goalDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection("goals")
+      .doc(goalToUpdateId);
+
+    const newSavedAmount = savedAmount + fund;
+    const progress = newSavedAmount / targetAmount * 100;
+    
+    const update = {
+      [`contributions.${accountId}`]: {
+        amount: FieldValue.increment(fund),
+        name: accountName
+      },
+      saved_amount: newSavedAmount,
+      progress
+    }
+
+    await goalDocRef.update(update);
+    return {success: true, message: `Goal fund added successfully`}
+  } catch (error) {
+    console.error(error.message);
+    throw new HttpsError("internal", "Fail to added fund to goal")
+  }
+})
+
+exports.withdrawalGoalFund= onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const goalToUpdateId = request.data.goalToUpdateId;  // budget Id
+  const {savedAmount, targetAmount, fund, accountId} = request.data.goalData;
+  if (!goalToUpdateId) {
+    throw new HttpsError("invalid-argument", "Missing goal Id");
+  }
+  if (!savedAmount || !targetAmount || !fund || !accountId) {
+    throw new HttpsError("invalid-argument", "Missing goal data");
+  }
+
+  try {
+    // Get the Bank document using itemId
+    const goalDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection("goals")
+      .doc(goalToUpdateId);
+
+    const newSavedAmount = savedAmount - fund;
+    const progress = newSavedAmount / targetAmount * 100;
+    
+    const update = {
+      [`contributions.${accountId}.amount`]: FieldValue.increment(fund * -1),
+      saved_amount: newSavedAmount,
+      progress
+    }
+
+    await goalDocRef.update(update);
+    return {success: true, message: `Goal withdrawl successfully`}
+  } catch (error) {
+    console.error(error.message);
+    throw new HttpsError("internal", "Fail to withdrawl fund from goal")
   }
 })
 
