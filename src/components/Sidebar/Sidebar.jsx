@@ -7,12 +7,13 @@ import { CgProfile } from "react-icons/cg";
 import { IoIosHelpCircleOutline, IoIosLogOut } from "react-icons/io";
 import { Link } from "react-router-dom";
 import styles from "./Sidebar.module.css";
+import { signUserOut } from "../../firebase/authHelpers";
 
 // Constants for Tailwind classes to keep things clean
 const DESKTOP_WIDTH = "w-60";
 const MOBILE_COLLAPSED_WIDTH = "w-[60px]";
 
-export default function Sidebar({ onLogOut }) {
+export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState(false);
@@ -139,7 +140,7 @@ export default function Sidebar({ onLogOut }) {
                     <span>Help</span>
                   )}
                 </li>
-                <li title="Log Out" onClick={onLogOut}>
+                <li title="Log Out" onClick={signUserOut}>
                   <IoIosLogOut size={25} />
                   {showExpandedContent && (
                     <span>Log Out</span>

@@ -21,7 +21,7 @@ const BudgetPieChart = memo(({ currentDate, categorySpendingData, categoryBudget
         month: 'short',
     });
 
-    const totalBudget = categoryBudgetList.reduce((acc, category) => acc + (category.target_amount || 0), 0);
+    const totalBudget = categoryBudgetList.reduce((acc, category) => acc + (category.target_amount || 0), 0).toFixed(2);
 
     const totalSpendingThisMonth = Object.values(categorySpendingData)
         .reduce((acc, category) => acc + (category.total || 0), 0).toFixed(2);

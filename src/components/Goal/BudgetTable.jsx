@@ -11,6 +11,12 @@ export default function BudgetTable(
     }) {
     const [isShowGoalDataRow, setIsShowGoalDataRow] = useState(true);
     const [isShowCategoryDataRow, setIsShowCategoryDataRow] = useState(true);
+    const [isShowUnbudgetDataRow, setIsShowUnbudgetDataRow] = useState(true);
+
+    const categoriesName = new Set(categoryBudgetList.map(cat => cat.category_name));
+    const UnbudgetCategories =
+        Object.entries(categorySpendingData)
+            .filter(([cat]) => !categoriesName.has(cat));
 
     const handleOpenGoalDetailPanel = (goalItem) => {
         setSelectedGoalItem(goalItem);
@@ -18,6 +24,11 @@ export default function BudgetTable(
     }
 
     const handleOpenCategoryDetailPanel = (categoryItem) => {
+        setSelectedCategoryItem(categoryItem);
+        setSelectedGoalItem(null);
+    }
+
+    const handleOpenUnbudgetDetailPanel = (categoryItem) => {
         setSelectedCategoryItem(categoryItem);
         setSelectedGoalItem(null);
     }
@@ -31,6 +42,11 @@ export default function BudgetTable(
         setIsShowCategoryDataRow(prev => !prev);
         setSelectedCategoryItem(null);
     }
+
+    const handleShowUnbudgetTable = () => {
+        setIsShowUnbudgetDataRow(prev => !prev);
+        setSelectedCategoryItem(null);
+    }
     return (
         <div className="mx-5 mt-4 overflow-auto">
             <table className="w-full border-collapse">
@@ -42,7 +58,7 @@ export default function BudgetTable(
                                     ? 
                                     <span>
                                         <BiSolidDownArrow
-                                            className="text-gray-400 text-lg"
+                                            className="text-gray-400 text-lg cursor-pointer"
                                             onClick={handleShowGoalTable}
 
                                         />
@@ -50,7 +66,7 @@ export default function BudgetTable(
                                     :
                                     <span>
                                         <BiSolidRightArrow
-                                            className="text-gray-400 text-lg"
+                                            className="text-gray-400 text-lg cursor-pointer"
                                             onClick={() => setIsShowGoalDataRow(prev => !prev)}
 
                                         />
@@ -58,12 +74,12 @@ export default function BudgetTable(
 
                                 }
                                 <span>Goals</span>
-                                <span>
+                                <button>
                                     <FaPlusCircle
                                         className="text-blue-400 cursor-pointer opacity-0 hover:opacity-100 transition-opacity duration-300"
                                         onClick={openModel}
                                     />
-                                </span>
+                                </button>
                             </div>
                         </th>
                         <th className="py-2 px-4 w-[20%] text-gray-400 text-right">Saved</th>
@@ -106,30 +122,30 @@ export default function BudgetTable(
                             <div className="flex items-center gap-1">
                                 {isShowCategoryDataRow
                                     ? 
-                                    <span>
+                                    <button>
                                         <BiSolidDownArrow
-                                            className="text-gray-400 text-lg"
+                                            className="text-gray-400 text-lg cursor-pointer"
                                             onClick={handleShowCategoryTable}
 
                                         />
-                                    </span> 
+                                    </button> 
                                     :
-                                    <span>
+                                    <button>
                                         <BiSolidRightArrow
-                                            className="text-gray-400 text-lg"
+                                            className="text-gray-400 text-lg cursor-pointer"
                                             onClick={() => setIsShowCategoryDataRow(prev => !prev)}
 
                                         />
-                                    </span> 
+                                    </button> 
 
                                 }
                                 <span>Categories</span>
-                                <span>
+                                <button>
                                     <FaPlusCircle
                                         className="text-blue-400 cursor-pointer opacity-0 hover:opacity-100 transition-opacity duration-300"
                                         onClick={openCategoryModal}
                                     />
-                                </span>
+                                </button>
                             </div>
                         </th>
                         <th className="py-2 px-4 w-[20%] text-gray-400 text-right">Spent</th>
@@ -137,10 +153,12 @@ export default function BudgetTable(
                         <th className="py-2 px-4 w-[20%] text-gray-400">Budget</th>
                     </tr>
                 </thead>
-                {isShowCategoryDataRow && 
+                {isShowCategoryDataRow && categoryBudgetList.length > 0 &&
                     <tbody>
                         {categoryBudgetList.map((category) => {
-                            const percent = (categorySpendingData[category.category_name]?.total || 0) / category.target_amount * 100;
+                            const spending = categorySpendingData[category.category_name]?.total || 0;
+                            const budget = category.target_amount;
+                            const percent = spending / budget * 100;
                             return (
                                 <tr
                                     key={category.budget_id}
@@ -167,12 +185,12 @@ export default function BudgetTable(
                                     </td>
 
                                     <td className="py-2 px-4 text-right font-medium tracking-wide">
-                                        ${categorySpendingData[category.category_name]?.total.toFixed(2) || category.spent_amount}
+                                        ${categorySpendingData[category.category_name]?.total.toFixed(2)}
                                     </td>
                                     <td className="py-2 px-4">
                                         <div className="w-full bg-gray-200 rounded-full h-2">
                                             <div
-                                                className={`${percent < 100 ? "bg-green-500" : "bg-red-500"} h-2 rounded-full`}
+                                                className={`${spending <= budget ? "bg-green-500" : "bg-red-500"} h-2 rounded-full`}
                                                 style={
                                                     {
                                                         width: `${Math.min(percent, 100)}%`
@@ -181,10 +199,81 @@ export default function BudgetTable(
                                             ></div>
                                         </div>
                                     </td>
-                                    <td className="py-2 px-4 font-medium tracking-wide">${Math.round(category.target_amount)}</td>
+                                    <td className="py-2 px-4 font-medium tracking-wide">${Math.ceil(category.target_amount)}</td>
                                 </tr>
                             )
                         })}
+                    </tbody>
+                }
+                <thead>
+                    <tr className="text-left border font-semibold text-lg bg-blue-100">
+                        <th className="gap-2 py-2 px-4 w-[30%] ">
+                            <div className="flex items-center gap-1">
+                                {isShowUnbudgetDataRow
+                                    ? 
+                                    <button>
+                                        <BiSolidDownArrow
+                                            className="text-gray-400 text-lg cursor-pointer"
+                                            onClick={handleShowUnbudgetTable}
+
+                                        />
+                                    </button> 
+                                    :
+                                    <button>
+                                        <BiSolidRightArrow
+                                            className="text-gray-400 text-lg cursor-pointer" 
+                                            onClick={() => setIsShowUnbudgetDataRow(prev => !prev)}
+
+                                        />
+                                    </button> 
+
+                                }
+                                <span>Unbudget</span>
+                            </div>
+                        </th>
+                        <th className="py-2 px-4 w-[20%] text-gray-400 text-right">Spent</th>
+                        <th className="py-2 px-4 w-[30%]"></th>
+                        <th className="py-2 px-4 w-[20%] text-gray-400">Budget</th>
+                    </tr>
+                </thead>
+                {isShowUnbudgetDataRow && UnbudgetCategories.length > 0 &&
+                    <tbody>
+                        {UnbudgetCategories.map(([category_name, value]) => (
+                            <tr
+                                key={category_name}
+                                className="hover:bg-blue-50"
+                                onClick={() => handleOpenUnbudgetDetailPanel({category_name})}
+                            >
+                                <td className="py-2 px-4">
+                                    <div
+                                        className={`flex items-center gap-2 rounded-full px-3 py-1 w-fit 
+                                        ${value.color || prettyMapCategory[category_name].color}`
+                                        }
+                                        title={category_name}
+                                    >
+                                        <img className="w-5 h-5 flex-shrink-0"
+                                            src={value.icon || prettyMapCategory[category_name].icon }
+                                            alt={`${category_name} Icon`}
+                                        />
+                                        <span className="text-sm font-bold truncate hidden md:inline">
+                                            {category_name}
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <td className="py-2 px-4 text-right font-medium tracking-wide">
+                                    ${value.total.toFixed(2)}
+                                </td>
+                                <td className="py-2 px-4">
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                        <div
+                                            className="bg-red-500 h-2 rounded-full w-full"
+                                        ></div>
+                                    </div>
+                                </td>
+                                <td className="py-2 px-4 font-medium tracking-wide">$0</td>
+                            </tr>
+                        ))}
                     </tbody>
                 }
             </table>
