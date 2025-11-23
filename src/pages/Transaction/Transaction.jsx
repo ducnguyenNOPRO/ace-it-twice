@@ -78,7 +78,7 @@ export default function Transaction() {
       },
       {
         staleTime: 5 * 60 * 1000,
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: false,
         refetchOnReconnect: false,
         enabled: !!itemId
       }))

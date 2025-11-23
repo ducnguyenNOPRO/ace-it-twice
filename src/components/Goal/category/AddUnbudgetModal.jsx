@@ -4,43 +4,17 @@ import DialogContent from "@mui/material/DialogContent"
 import DialogTitle from "@mui/material/DialogTitle"
 import TextField from "@mui/material/TextField"
 import Button from "@mui/material/Button"
-import MenuItem from "@mui/material/MenuItem"
-import prettyMapCategory from "../../../constants/prettyMapCategory"
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { addBudget } from "../../../api/budget"
 import { useQueryClient } from "@tanstack/react-query"
 
 
-export default function AddCategoryModal({ open, onClose, currentDate }) {
+export default function AddUnbudgetModal({ open, onClose, currentDate, categoryName }) {
     const [errors, setErrors] = useState({});
     const queryClient = useQueryClient();
-    
-
-    // Memmoize category options to prevent re-rendering
-    const categoryOptions = useMemo(() => {
-        return Object.entries(prettyMapCategory).map(([key]) => 
-            (
-            <MenuItem
-                key={key}
-                value={key}
-                sx={{
-                    '&:hover': {
-                        backgroundColor: "#def6f8",
-                        color: 'black'
-                    }
-                }}
-            >
-                {key}
-            </MenuItem>
-        ))
-    }, [])
 
     const validateInput = (data) => {
         const newErrors = {};
-
-        if (!data.category_name) {
-            newErrors.category_name = "Goal name is required";
-        }
 
         if (!data.target_amount) {
             newErrors.target_amount = "Target amount is required";
@@ -81,8 +55,8 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
         });
 
         // end of month
-        const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
-        console.log(endDate);
+        const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        console.log(endDate.getMonth());
         const endDateFormatted = now.toLocaleString("en-US", {
             day: "2-digit",
             month: "short",
@@ -90,10 +64,11 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
 
         const budgetToAdd = {
             ...formValues,
+            category_name: categoryName,
             target_amount: Number(formValues.target_amount),
-            start_date: startDate,
+            start_date: startDate.toISOString(),
             start_date_formatted: startDateFormatted,
-            end_date: endDate,
+            end_date: endDate.toISOString(),
             end_date_formatted: endDateFormatted
         }
 
@@ -118,14 +93,9 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
                 <DialogContent dividers>
                     <TextField
                         fullWidth
-                        select
                         margin="normal"
                         label="Category"
-                        name="category_name"
-                        defaultValue=""
-                        required
-                        error={!!errors.category_name}
-                        helperText={errors.category_name}
+                        value={categoryName}
                         slotProps={{
                             select: {
                                 MenuProps: {
@@ -137,8 +107,9 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
                                 }
                             }
                         }}
+                        disabled
                     >
-                        {categoryOptions}
+                        {categoryName}
                     </TextField>
                     <TextField
                         type="number"

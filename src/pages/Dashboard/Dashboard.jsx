@@ -11,11 +11,13 @@ import { getMonthlySpendingData, getSpendingDataByCategorySorted } from '../../u
 import { useQuery } from '@tanstack/react-query'
 import { createRecentTransactionsQueryOptions, createAccountsQueryOptions, createMonthlyTransactionsQueryOptions} from '../../util/createQueryOptions'
 import { useItemId } from '../../hooks/useItemId'
+import useLocalBalance from '../../hooks/useLocalBalance'
 
 export default function Dashboard() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { currentUser } = useAuth();
   const { itemId } = useItemId(currentUser.uid);
+    const localBalance = useLocalBalance(itemId);
   const { data: recentTransactionsResponse, isLoading: loadingTransactions } = useQuery(
     createRecentTransactionsQueryOptions(
       { itemId },
@@ -97,7 +99,7 @@ export default function Dashboard() {
                       {"<"}
                     </button>
 
-                    <Card account={accounts[currentIndex]} />
+                    <Card account={localBalance[currentIndex]} />
 
                     <button
                       onClick={handleNext}

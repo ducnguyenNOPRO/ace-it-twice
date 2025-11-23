@@ -19,8 +19,6 @@ export default function AddFundModal({ open, onClose, selectedGoalItem, setSelec
     const linkedAccountsArray = useMemo(() => Object.entries(selectedGoalItem.contributions) || [], [selectedGoalItem])
     
     const [errors, setErrors] = useState({});
-
-    console.log(linkedAccount);
     
     const validateInput = (data) => {
         let newErrors = {};

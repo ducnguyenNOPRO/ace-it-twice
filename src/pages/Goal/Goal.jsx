@@ -7,14 +7,16 @@ import WithdrawalFundModal from "../../components/Goal/WithdrawalFundModal";
 import BudgetTable from "../../components/Goal/BudgetTable";
 import { useAuth } from "../../contexts/authContext";
 import { useItemId } from '../../hooks/useItemId'
-import { createBudgetsQueryOptions, createGoalsQueryOptions, createMonthlyTransactionsQueryOptions } from "../../util/createQueryOptions";
+import { createBudgetsQueryOptions, createAccountsQueryOptions, createGoalsQueryOptions, createMonthlyTransactionsQueryOptions, createAverageBudgetsQueryOptions } from "../../util/createQueryOptions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import EditGoalModal from "../../components/Goal/EditModal";
 import DetailGoalPanel from "../../components/Goal/DetailGoalPanel";
 import DetailCategoryPanel from "../../components/Goal/category/DetailCategoryPanel";
 import AddCategoryModal from "../../components/Goal/category/AddCategoryModal";
-import { getSpendingDataByCategorySorted, getMonthlySpendingDataPerCategory } from "../../util/spendingData"
+import { getSpendingDataByCategorySorted} from "../../util/spendingData"
 import BudgetPieChart from "../../components/Goal/BudgetPieChar";
+import AutoSetBudgetModal from "../../components/Goal/AutoSetBudgetModal";
+import RebalanceModal from "../../components/Goal/RebalanceModal";
 
 export default function Goal() {
     const queryClient = useQueryClient();
@@ -22,12 +24,25 @@ export default function Goal() {
     const [isAddCategoryModelOpen, setIsAddCategoryModalOpen] = useState(false);
     const [isAddFundModalOpen, setIsAddFundModallOpen] = useState(false);
     const [isWithdrawalFundModalOpen, setIsWithdrawalFundModalOpen] = useState(false);
+    const [isSetBudgetModalOpen, setIsSetBudgetModalOpen] = useState(false);
+    const [isOpenRebalanceModal, setIsOpenRebalanceModal] = useState(false);
     const { currentUser } = useAuth();
     const { itemId } = useItemId(currentUser.uid);
     const [selectedGoalItem, setSelectedGoalItem] = useState(null);
     const [selectedCategoryItem, setSelectedCategoryItem] = useState(null);
     const [editMode, setEditMode] = useState(false);  // Use for Goal Items
     const [currentDate, setCurrentDate] = useState(new Date());
+    const { data: averageBudgetResponse } = useQuery(
+        createAverageBudgetsQueryOptions(
+            {
+                currentMonth: `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`,
+            },
+            {
+                staleTime: Infinity,
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false
+            }
+        ))
     const { data: goalsListResponse } = useQuery(
         createGoalsQueryOptions(
             {},
@@ -39,17 +54,23 @@ export default function Goal() {
     const { data: budgetsListResponse } = useQuery(
         createBudgetsQueryOptions(
             {
-                month: currentDate.getMonth() + 1,
+                month: currentDate.getMonth() + 1, // used 1-based index for query key
                 year: currentDate.getFullYear()
             },
             {
                 staleTime: Infinity,
-                refetchOnWindowFocus: false,
+                refetchOnWindowFocus:false,
                 refetchOnReconnect: false
             }));
-    const { data: monthlyTransactionsResponse, isLoading: loadingMonthlyTransactions } = useQuery(
+    const { data: monthlyTransactionsResponse} = useQuery(
         createMonthlyTransactionsQueryOptions(
-            { itemId },
+            {
+                itemId,
+                date: {
+                    month: currentDate.getMonth() + 1, // used 1-based index for query key
+                    year: currentDate.getFullYear()
+                }
+            },
             {
                 staleTime: Infinity,
                 refetchOnWindowFocus: false,
@@ -59,31 +80,30 @@ export default function Goal() {
         )
     )
 
-    const goalsList = goalsListResponse?.goals ?? [];
-    const categoryBudgetList = budgetsListResponse?.budgets ?? [];
-    const monthlyTransactions = monthlyTransactionsResponse?.monthlyTransactions ?? [];
-
-    // Spending for a specific category
-    //return { "MMM D", total: int}
-    const monthlySpendingDataByCategory = useMemo(() =>
-        getMonthlySpendingDataPerCategory(monthlyTransactions, selectedCategoryItem?.category_name)
-        , [monthlyTransactions, selectedCategoryItem]);
-    
-    // Spending for all category
-    //return [{category: {total, icon, color}}]
-    const categorySpendingData = useMemo(() => getSpendingDataByCategorySorted(monthlyTransactions), [monthlyTransactions]);
-    
-
-    // const totalGoalsSaving = useMemo(() => getTotalGoalsSaving(goalsList), [goalsList])
-
-    // Always enable view mode when click on a new item
+        // Always enable view mode when click on a new item
     useEffect(() => {
         setEditMode(false);
     }, [selectedGoalItem]);
 
-    console.log(queryClient.getQueryCache().getAll())
+    useEffect(() => {
+        queryClient.prefetchQuery(
+            createAccountsQueryOptions(
+                { itemId },
+                { staleTime: Infinity, refetchOnWindowFocus: false, refetchOnReconnect: false }
+            ));
+    }, [itemId, queryClient])
 
-    const handleOpenAddModal = () => {
+    const goalsList = goalsListResponse?.goals ?? [];
+    const categoryBudgetList = budgetsListResponse?.budgets ?? []; // Array of budgeted category from DB
+    const monthlyTransactions = monthlyTransactionsResponse?.monthlyTransactions ?? [];
+    const averages = averageBudgetResponse?.averages ?? []; // Array of spendings categorys for 3 last months
+    
+    // Spending for all category for current month
+    //return [{category: {total, icon, color}}]
+    const categorySpendingData = useMemo(() => getSpendingDataByCategorySorted(monthlyTransactions), [monthlyTransactions]);
+    
+     console.log(queryClient.getQueryCache().getAll())
+    const handleOpenAddModal = async () => {
         setIsAddModalOpen(true);
     }
 
@@ -115,9 +135,22 @@ export default function Goal() {
         setIsAddCategoryModalOpen(false);
     }
 
-    if (loadingMonthlyTransactions || monthlyTransactions.length === 0) {
-        return <div>Loading....</div>
+    const handleOpenSetBudgetModal = () => {
+        setIsSetBudgetModalOpen(true);
     }
+
+    const handleCloseSetBudgetModal = () => {
+        setIsSetBudgetModalOpen(false);
+    }
+
+    const handleOpenRebalnceModal = () => {
+        setIsOpenRebalanceModal(true);
+    }
+
+    const handleCloseRebalnceModal = () => {
+        setIsOpenRebalanceModal(false);
+    }
+
     return (
         <>
             <div className="flex h-screen text-gray-500 relative">
@@ -128,7 +161,14 @@ export default function Goal() {
                 <div className="flex-1 flex flex-col lg:flex-row overflow-auto">
                     <div className="flex flex-col w-full lg:w-[60%] lg:border-r">
                         {/* Topbar*/}
-                        <Topbar currentDate={currentDate} setCurrentDate={setCurrentDate} />
+                        <Topbar
+                            currentDate={currentDate}
+                            setCurrentDate={setCurrentDate}
+                            setSelectedGoalItem={setSelectedGoalItem}
+                            setSelectedCategoryItem={setSelectedCategoryItem}
+                            openSetBudgetModal={handleOpenSetBudgetModal}
+                            openReblanceModal={handleOpenRebalnceModal}
+                        />
             
                         {/* Main Content */}
                         <main className="text-black mb-10">
@@ -169,9 +209,9 @@ export default function Goal() {
                             selectedCategoryItem={selectedCategoryItem}
                             setSelectedCategoryItem={setSelectedCategoryItem}
                             categorySpendingData={categorySpendingData}
-                            monthlySpendingDataByCategory={monthlySpendingDataByCategory}
-                            monthlyTransactions={monthlyTransactions}
                             currentDate={currentDate}
+                            itemId={itemId}
+                            averageSpending={averages}
                         />
                     }
 
@@ -216,6 +256,26 @@ export default function Goal() {
                         itemId={itemId}
                         selectedGoalItem={selectedGoalItem}
                         setSelectedGoalItem={setSelectedGoalItem}
+                    />
+                )}
+                {isSetBudgetModalOpen && (
+                    <AutoSetBudgetModal
+                        open={isSetBudgetModalOpen}
+                        onClose={handleCloseSetBudgetModal}
+                        categoryBudgetList={categoryBudgetList}
+                        categorySpendingData={categorySpendingData}
+                        averageSpendings={averages}
+                        currentDate={currentDate}
+                    />
+                )}
+
+                {isOpenRebalanceModal && (
+                    <RebalanceModal 
+                        open={isOpenRebalanceModal}
+                        onClose={handleCloseRebalnceModal}
+                        categoryBudgetList={categoryBudgetList}
+                        categorySpendingData={categorySpendingData}
+                        currentDate={currentDate}
                     />
                 )}
             </div>

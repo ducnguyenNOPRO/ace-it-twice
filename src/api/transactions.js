@@ -37,10 +37,25 @@ export async function getRecentTransactions(params = {}) {
 }
 export async function getMonthlyTransactions(params = {}) {
     if (!params.itemId) throw new Error("Frontend: Missing itemId");
+    if (!params.date) throw new Error("FrontEnd:", "Missing month and year");
 
     const getMonthlyTransactions = httpsCallable(functions, "getMonthlyTransactions");
     try {
         const { data } = await getMonthlyTransactions(params);
+        return data;
+    } catch (error) {
+        console.error('Firebase function error:', error);
+        throw error;
+    }
+}
+export async function get3MonthTransactionsPerCategory(params = {}) {
+    if (!params.itemId) throw new Error("Frontend: Missing itemId");
+    if (!params.date) throw new Error("FrontEnd:", "Missing month and year");
+    if (!params.category) throw new Error("FrontEnd:", "Missing category");
+
+    const get3MonthTransactionsPerCategory = httpsCallable(functions, "get3MonthTransactionsPerCategory");
+    try {
+        const { data } = await get3MonthTransactionsPerCategory(params);
         return data;
     } catch (error) {
         console.error('Firebase function error:', error);

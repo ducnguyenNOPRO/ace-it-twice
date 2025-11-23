@@ -6,7 +6,9 @@ const prettyMapCategory = require('./constants/prettyMapCategory');
 const { validateFilters } = require('./utils/validateFilters')
 const { verifyPlaidWebhook } = require('./utils/validatePlaidWebhook');
 const { format } = require("date-fns");
-const { increment } = require("firebase/firestore");
+const { onSchedule } = require("firebase-functions/scheduler");
+const { getLast3Months } = require('./utils/getMonths')
+const {groupByCategory} = require('./utils/averageBudget')
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -54,6 +56,171 @@ exports.createLinkToken = onCall(async (request) => {
       throw new HttpsError("internal", error.message || "Unknown error with Plaid");
   }
 });
+
+exports.aggregatePreviousMonthSpending = onSchedule({
+  schedule: "5 0 1 * *",
+  timeZone: "America/Los_Angeles"
+}, async (event) => {
+  console.log("Scheduled job running!", event);
+  
+  const now = new Date();
+  const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const month = now.getMonth() === 0 ? 12 : now.getMonth();
+  const year_month = `${year}-${month.toString().padStart(2, "0")}`;
+  
+  const startOfMonth = new Date(year, month - 1, 1, 0, 0, 0);
+  const endOfMonth = new Date(year, month, 1, 0, 0, 0, 0);
+  
+  console.log("Start", startOfMonth);
+  console.log("End", endOfMonth);
+  try {
+// Fetch all user
+  const usersSnapshot = await admin.firestore().collection("users").get();
+  
+  for (const userDoc of usersSnapshot.docs) {
+    const uid = userDoc.id;
+  
+      const plaidItemsSnapshot = await admin.firestore()
+          .collection("users")
+          .doc(uid)
+          .collection("plaid")
+          .get();
+      
+      const monthlyCategoryTotals = {};
+      
+      for (const plaidItemDoc of plaidItemsSnapshot.docs) {
+          const txsSnapshot = await admin.firestore()
+              .collection("users")
+              .doc(uid)
+              .collection("plaid")
+              .doc(plaidItemDoc.id)
+              .collection("transactions")
+              .where("date", ">=", startOfMonth.toISOString())
+              .where("date", "<", endOfMonth.toISOString())
+              .get();
+          
+          txsSnapshot.forEach(txDoc => {
+            const tx = txDoc.data();
+            if (tx.amount > 0) return;
+            const category = tx.category || "Other";
+            const key = `${year_month}_${category}`;
+            if (!monthlyCategoryTotals[key]) {
+                monthlyCategoryTotals[key] = {
+                    year_month,
+                    category,
+                    total_spent: 0
+                }
+            }
+            monthlyCategoryTotals[key].total_spent += tx.amount;
+          });
+      }
+      const batch = admin.firestore().batch();
+      for (const [key, summary] of Object.entries(monthlyCategoryTotals)) {
+          const docRef = admin.firestore()
+              .collection("users")
+              .doc(uid)
+              .collection("monthlyCategorySpending")
+              .doc(key);
+          batch.set(docRef, {
+              ...summary,
+              updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+      }
+  
+    await batch.commit();
+    console.log("Completed")
+  };
+  } catch (error) {
+    console.log(error);
+  }  
+})
+
+async function aggregateAfterPlaidSync(uid, transactions) {
+  // Group by month + category
+  const monthlyCategoryTotals = {};
+
+  // Group spending transactions by month + category
+  transactions.filter(tx => tx.amount < 0).forEach(tx => {
+    const date = new Date(tx.date);
+    const year_month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    const category = tx.category || "Other";
+    const key = `${year_month}_${category}`;
+
+    if (!monthlyCategoryTotals[key]) {
+      monthlyCategoryTotals[key] = {
+        year_month,
+        category,
+        total_spent: 0
+      }
+    }
+    monthlyCategoryTotals[key].total_spent += (tx.amount * -1);
+  });
+  try {
+    // Batch write to firestore
+    const batch = admin.firestore().batch();
+    for (const [key, summary] of Object.entries(monthlyCategoryTotals)) {
+      const docRef = admin.firestore()
+        .collection("users")
+        .doc(uid)
+        .collection("monthlyCategorySpending")
+        .doc(key);
+      batch.set(docRef, {
+        ...summary,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+    await batch.commit();
+  } catch (error) {
+    console.error(error);
+    throw new HttpsError("internal", "Unable to aggregate monthly spending.");
+  }
+}
+    
+
+async function saveAccountData(uid, itemId, accounts) {
+  console.log(`]avingAccount] data for user ${uid}, itemId ${itemId}`)
+
+  try {
+    // Get access token from firestore
+    const plaidDocRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId);
+    
+    const plaidDoc = await plaidDocRef.get();
+    
+    if (!plaidDoc.exists) {
+      throw new HttpsError("not-found", "Plaid item not found.");
+    }
+
+    // Store accounts in Firestore
+    const batch = admin.firestore().batch();  // Used to write multiple documents at once
+    const accountsRef = plaidDocRef.collection("accounts")
+    
+    accounts.forEach(account => {
+      const docRef = accountsRef.doc(account.account_id);
+      batch.set(docRef, {
+        account_id: account.account_id,
+        name: account.name,
+        official_name: account.official_name,
+        type: account.type,
+        subtype: account.subtype,
+        mask: account.mask,
+        balances: account.balances,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+
+    await batch.commit();
+
+    return { success: true, message: "Accounts synced"};
+  }
+  catch (error) {
+    throw new HttpsError("internal", "Fail to save account.");
+  }
+}
 
 // Fetch transactins from Plaid and save to DB
 async function syncPlaidTransaction(uid, itemId) {
@@ -156,6 +323,12 @@ async function syncPlaidTransaction(uid, itemId) {
     await batch.commit();
 
     await plaidDocRef.update({ cursor });
+
+    // Save Account data
+    saveAccountData(uid, itemId, response.data.accounts);
+
+    // Calculate monthly spending
+    aggregateAfterPlaidSync(uid, transactionsToSave);
 
     return {
       success: true,
@@ -511,7 +684,8 @@ exports.getMonthlyTransactions = onCall(async (request) => {
     throw new HttpsError("Unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
-  const {itemId} = request.data;
+  const { itemId, date } = request.data;
+  const { month, year } = date;
 
   if (!itemId) {
     throw new HttpsError("invalid-argument", "Missing Item Id");
@@ -526,14 +700,64 @@ exports.getMonthlyTransactions = onCall(async (request) => {
       .collection('transactions');
     
     // Current month
-    const now = new Date();
-    const startDate = format(new Date(now.getFullYear(), now.getMonth() - 3, 1), "yyyy-MM-dd");
-    const endDate = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
+    const startDate = format(new Date(year, month -1, 1), "yyyy-MM-dd");
+    const endDate = format(new Date(year, month, 0), "yyyy-MM-dd");
 
     console.log(startDate, endDate)
     
     const query = transactionsRef
       .where("removed", "!=", true)
+      .where("date", ">=", startDate)
+      .where("date", "<=", endDate)
+      .orderBy("date", "desc");
+    const snapshot = await query.get();
+
+    const transactions = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+
+    return {
+      success: true,
+      message: "Monthly transactions fetched succesfully",
+      totalTransactions: transactions.length,
+      monthlyTransactions: transactions,
+    }
+  } catch (error) {
+    console.log(error);
+    throw new HttpsError("internal", "Fail to get monthly transactions.");
+  }
+})
+
+exports.get3MonthTransactionsPerCategory = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+  const { itemId, category, date } = request.data;
+  const { month, year } = date;
+
+  if (!itemId) {
+    throw new HttpsError("invalid-argument", "Missing Item Id");
+  }
+
+  try {
+    const transactionsRef = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid')
+      .doc(itemId)
+      .collection('transactions');
+    
+    // Current month
+    const startDate = format(new Date(year, month - 3, 1), "yyyy-MM-dd");
+    const endDate = format(new Date(year, month, 0), "yyyy-MM-dd");
+
+    console.log(startDate, endDate)
+    
+    const query = transactionsRef
+      .where("removed", "!=", true)
+      .where("category", "==", category)
       .where("date", ">=", startDate)
       .where("date", "<=", endDate)
       .orderBy("date", "desc");
@@ -778,7 +1002,7 @@ exports.getGoals = onCall(async (request) => {
       .doc(uid)
       .collection('goals');
     
-    const query = goalsRef.orderBy("progress", "desc");
+    const query = goalsRef.orderBy("target_amount", "desc");
     const snapshot = await query.get();
 
     const goals = snapshot.docs.map(doc => ({
@@ -821,7 +1045,6 @@ exports.addGoal = onCall(async (request) => {
     const newGoalDocData = {
       ...goalData,
       goal_id: newGoalDocRef.id,
-      progress: goalData.saved_amount / goalData.target_amount * 100,
       contributions: {
         [id]: {
           amount: goalData.saved_amount,
@@ -845,13 +1068,14 @@ exports.addGoalFund= onCall(async (request) => {
 
   const uid = request.auth.uid;
   const goalToUpdateId = request.data.goalToUpdateId;  // budget Id
-  const { accountName, savedAmount, targetAmount, fund, accountId } = request.data.goalData; 
+  const { accountName, fund, accountId } = request.data.goalData; 
   if (!goalToUpdateId) {
     throw new HttpsError("invalid-argument", "Missing goal Id");
   }
-  if (!accountName || savedAmount < 0 || !targetAmount || !fund || !accountId) {
+  if (!accountName || !fund || !accountId) {
     throw new HttpsError("invalid-argument", "Missing goal data");
   }
+
 
   try {
     // Get the Bank document using itemId
@@ -860,17 +1084,11 @@ exports.addGoalFund= onCall(async (request) => {
       .doc(uid)
       .collection("goals")
       .doc(goalToUpdateId);
-
-    const newSavedAmount = savedAmount + fund;
-    const progress = newSavedAmount / targetAmount * 100;
     
     const update = {
-      [`contributions.${accountId}`]: {
-        amount: FieldValue.increment(fund),
-        name: accountName
-      },
-      saved_amount: newSavedAmount,
-      progress
+      [`contributions.${accountId}.amount`]: FieldValue.increment(fund),
+      [`contributions.${accountId}.name`]: accountName,
+      saved_amount: FieldValue.increment(fund),
     }
 
     await goalDocRef.update(update);
@@ -888,11 +1106,11 @@ exports.withdrawalGoalFund= onCall(async (request) => {
 
   const uid = request.auth.uid;
   const goalToUpdateId = request.data.goalToUpdateId;  // budget Id
-  const {savedAmount, targetAmount, fund, accountId} = request.data.goalData;
+  const {targetAmount, fund, accountId} = request.data.goalData;
   if (!goalToUpdateId) {
     throw new HttpsError("invalid-argument", "Missing goal Id");
   }
-  if (!savedAmount || !targetAmount || !fund || !accountId) {
+  if (!targetAmount || !fund || !accountId) {
     throw new HttpsError("invalid-argument", "Missing goal data");
   }
 
@@ -903,14 +1121,10 @@ exports.withdrawalGoalFund= onCall(async (request) => {
       .doc(uid)
       .collection("goals")
       .doc(goalToUpdateId);
-
-    const newSavedAmount = savedAmount - fund;
-    const progress = newSavedAmount / targetAmount * 100;
     
     const update = {
       [`contributions.${accountId}.amount`]: FieldValue.increment(fund * -1),
-      saved_amount: newSavedAmount,
-      progress
+      saved_amount: FieldValue.increment(fund * -1)
     }
 
     await goalDocRef.update(update);
@@ -958,6 +1172,16 @@ exports.getBudgets = onCall(async (request) => {
     throw new HttpsError("Unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
+  const { month, year } = request.data;
+
+  if (!month || !year) {
+    throw new HttpsError("invalid-argument", "Missing month or year argument");
+  }
+  // 0-based index
+  const startOfMonth = new Date(year, month - 1, 1).toISOString(); 
+  const endOfMonth = new Date(year, month, 0).toISOString(); // last day of month
+
+  console.log(startOfMonth, endOfMonth);
 
   try {
     const budgetsRef = admin.firestore()
@@ -965,7 +1189,10 @@ exports.getBudgets = onCall(async (request) => {
       .doc(uid)
       .collection('budgets');
     
-    const query = budgetsRef.orderBy("target_amount", "desc");
+    const query = budgetsRef
+      .where("end_date", ">=", startOfMonth)
+      .where("start_date", "<=", endOfMonth)
+      .orderBy("target_amount", "desc");
     const snapshot = await query.get();
 
     const budgets = snapshot.docs.map(doc => ({
@@ -982,6 +1209,40 @@ exports.getBudgets = onCall(async (request) => {
   } catch (error) {
     console.log(error);
     throw new HttpsError("internal", "Fail to get budget items.");
+  }
+})
+
+// Get 5 months spending average for all categories
+// Need to fix to get spendings for specific sets of categories (unbudgeted ones for current month)
+exports.getAverageBudget = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+  const uid = request.auth.uid;
+  const { currentMonth} = request.data.requestData;
+  if (!currentMonth) {
+    throw new HttpsError("invalid-argument", "Missing month");
+  }
+  const months = getLast3Months(currentMonth, 5);
+  try {
+    const budgetsRef = admin.firestore()
+      .collection("users")
+      .doc(uid)
+      .collection("monthlyCategorySpending");
+    
+    const query = budgetsRef
+      .where("year_month", "in", months);
+    
+    const snapshot = await query.get();
+    const groupedWithAverage = groupByCategory(snapshot.docs, months);
+    return {
+      message: "Success",
+      averages: groupedWithAverage
+    }
+    
+  } catch (error) {
+    console.log(error);
+    throw new HttpsError("internal", "Fail to get average budget");
   }
 })
 
@@ -1009,7 +1270,6 @@ exports.addBudget = onCall(async (request) => {
       ...budgetData,
       budget_id: newBudgetDocRef.id,
       createdAt: FieldValue.serverTimestamp(),
-      spent_amount: 0
     }
 
     // Add the transaction
@@ -1020,6 +1280,46 @@ exports.addBudget = onCall(async (request) => {
   }
 })
 
+exports.addMultipleBudgets = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const budgetArray = request.data.budgetArray;
+
+  if (!budgetArray) {
+    throw new HttpsError("invalid-argument", "Missing budget array");
+  }
+
+  try {
+
+    const batch = admin.firestore().batch();
+
+    budgetArray.forEach(budget => {
+      // Create a new doc ref with an auto generated ID
+      const newBudgetDocRef = admin.firestore()
+        .collection('users')
+        .doc(uid)
+        .collection("budgets")
+        .doc();
+      
+      const budgetData = {
+        ...budget,
+        budget_id: newBudgetDocRef.id,
+        createdAt: FieldValue.serverTimestamp(),
+      }
+
+      batch.set(newBudgetDocRef, budgetData, { merge: true });
+    })
+    // Add the transaction
+    await batch.commit();
+    return {success: true, message: `${budgetArray.length} added successfully`}
+  } catch (error) {
+    throw new HttpsError("internal", `Fail to add ${budgetArray.length} budget`)
+  }
+})
+
 exports.editBudgetById= onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("Unauthenticated", "User must be logged in");
@@ -1027,13 +1327,13 @@ exports.editBudgetById= onCall(async (request) => {
 
   const uid = request.auth.uid;
   const budgetToUpdateId = request.data.budgetToUpdateId;  // budget Id
-  const budgetData = request.data.budgetData;
+  const {target_amount, notes} = request.data.budgetData;
 
   if (!budgetToUpdateId) {
     throw new HttpsError("invalid-argument", "Missing budget Id");
   }
-  if (!budgetData) {
-    throw new HttpsError("invalid-argument", "Missing budget data");
+  if (!target_amount) {
+    throw new HttpsError("invalid-argument", "Missing budget amount");
   }
 
   try {
@@ -1044,10 +1344,42 @@ exports.editBudgetById= onCall(async (request) => {
       .collection("budgets")
       .doc(budgetToUpdateId);
 
-    await budgetDocRef.update(budgetData);
+    await budgetDocRef.update({ target_amount, notes });
     return {success: true, message: `Budget updated successfully`}
   } catch (error) {
     console.error(error);
     throw new HttpsError("internal", "Fail to update goal")
+  }
+})
+
+exports.editMultipleBudgets= onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("Unauthenticated", "User must be logged in");
+  }
+
+  const uid = request.auth.uid;
+  const budgets = request.data.budgetArray;
+  if (!budgets || budgets.length === 0) {
+    throw new HttpsError("invalid-argument", "Missing budgets array");
+  }
+
+  try {
+    const batch = admin.firestore().batch();
+    budgets.forEach(item => {
+      // Get the Bank document using itemId
+      const budgetDocRef = admin.firestore()
+        .collection('users')
+        .doc(uid)
+        .collection("budgets")
+        .doc(item.budget_id);
+      batch.update(budgetDocRef, { target_amount: item.target_amount });
+    })
+    
+
+    await batch.commit();
+    return {success: true, message: `Budget updated successfully`}
+  } catch (error) {
+    console.error(error);
+    throw new HttpsError("internal", "Fail to update multiple budgets")
   }
 })
