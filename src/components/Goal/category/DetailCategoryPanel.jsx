@@ -238,8 +238,8 @@ export default function DetailCategoryPanel(
         if (!validateInput()) return;
 
         const budgetId = inputValues.budget_id;
-        const updateAmount = inputValues.target_amount;
-        await editBudgetById(budgetId, updateAmount, () => setEditMode(false));
+        const { target_amount, notes } = inputValues;
+        await editBudgetById(budgetId, {target_amount, notes}, () => setEditMode(false));
         refetchBudget();
         setSelectedCategoryItem(inputValues);
     }
@@ -305,14 +305,14 @@ export default function DetailCategoryPanel(
                         </div>
                         <div className="flex items-baseline justify-end font-medium text-gray-400">
                             <span className="relative self-start top-1 text-[0.75rem]">$</span>
-                            {inputValues.target_amount >= Number(categorySpendingData[selectedCategoryItem.category_name]?.total)
+                            {inputValues.target_amount && inputValues.target_amount >= Number(categorySpendingData[selectedCategoryItem.category_name]?.total)
                                 ?
                                     <h3 className="text-lg">
                                         {(inputValues.target_amount - Number(categorySpendingData[selectedCategoryItem.category_name]?.total) || 0).toFixed(2)} left
                                     </h3>
                                 : 
                                     <h3 className="text-lg">
-                                            {((inputValues.target_amount - Number(categorySpendingData[selectedCategoryItem.category_name]?.total)) * -1  || 0).toFixed(2)} needed
+                                            {(((inputValues.target_amount || 0) - Number(categorySpendingData[selectedCategoryItem.category_name]?.total)) * -1).toFixed(2)} needed
                                     </h3>
                             }
                         </div>
@@ -351,7 +351,7 @@ export default function DetailCategoryPanel(
                         {group.transactions.map(tx => (
                             <div
                                 key={tx.transaction_id}    
-                                className="grid grid-cols-[0.5fr_1fr_0.5fr_0.5fr] text-black gap-y-3 hover:bg-blue-100 p-2"
+                                className="grid grid-cols-[0.5fr_1fr_auto_0.5fr] text-black gap-y-3 hover:bg-blue-100 p-2"
                             >
                                 <span>{new Date(tx.date).toLocaleString("en-us", {month: "short", day: "2-digit"})}</span>
                                 <span className="truncate" title={tx.merchant_name}>{tx.merchant_name}</span>

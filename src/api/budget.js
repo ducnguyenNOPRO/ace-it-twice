@@ -58,13 +58,13 @@ export async function addMultipleBudgets(budgetArray, onClose) {
     )
 }
 
-export async function editBudgetById(budgetToUpdateId, budgetAmount, onClose) {
+export async function editBudgetById(budgetToUpdateId, budgetData, onClose) {
     if (!budgetToUpdateId) throw new Error("Frontend: Missing BudgetId");
-    if (!budgetAmount) throw new Error("Frontend: Missing budget amount");
+    if (!budgetData) throw new Error("Frontend: Missing budget data");
 
     const editBudgetById = httpsCallable(functions, "editBudgetById");
     await showToastDuringAsync(
-        editBudgetById({ budgetToUpdateId, budgetAmount }),
+        editBudgetById({ budgetToUpdateId, budgetData }),
         {
             loadingMessage: "Saving Budget...",
             successMessage: "Budget updated successfully",

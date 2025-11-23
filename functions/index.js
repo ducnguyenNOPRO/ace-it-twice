@@ -1213,6 +1213,7 @@ exports.getBudgets = onCall(async (request) => {
 })
 
 // Get 5 months spending average for all categories
+// Need to fix to get spendings for specific sets of categories (unbudgeted ones for current month)
 exports.getAverageBudget = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("Unauthenticated", "User must be logged in");
@@ -1326,12 +1327,12 @@ exports.editBudgetById= onCall(async (request) => {
 
   const uid = request.auth.uid;
   const budgetToUpdateId = request.data.budgetToUpdateId;  // budget Id
-  const budgetAmount = request.data.budgetAmount;
+  const {target_amount, notes} = request.data.budgetData;
 
   if (!budgetToUpdateId) {
     throw new HttpsError("invalid-argument", "Missing budget Id");
   }
-  if (!budgetAmount) {
+  if (!target_amount) {
     throw new HttpsError("invalid-argument", "Missing budget amount");
   }
 
@@ -1343,7 +1344,7 @@ exports.editBudgetById= onCall(async (request) => {
       .collection("budgets")
       .doc(budgetToUpdateId);
 
-    await budgetDocRef.update({ target_amount: budgetAmount });
+    await budgetDocRef.update({ target_amount, notes });
     return {success: true, message: `Budget updated successfully`}
   } catch (error) {
     console.error(error);

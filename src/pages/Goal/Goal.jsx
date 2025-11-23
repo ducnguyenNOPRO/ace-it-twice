@@ -59,7 +59,7 @@ export default function Goal() {
             },
             {
                 staleTime: Infinity,
-                refetchOnWindowFocus: false,
+                refetchOnWindowFocus:false,
                 refetchOnReconnect: false
             }));
     const { data: monthlyTransactionsResponse} = useQuery(
