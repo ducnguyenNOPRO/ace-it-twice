@@ -44,7 +44,7 @@ export default function Register() {
         e.preventDefault();
         setErrorMsg(null);
         // User must enter email,password and password confirmation
-        if (!name || !email || !password || !passwordConfirmation) {
+        if (!fullName || !email || !password || !passwordConfirmation) {
             setErrorMsg("Please enter all your field")
             return;
         }
@@ -92,7 +92,7 @@ export default function Register() {
                     <form onSubmit={onSubmit}>
 
                         <label className="text-sm text-gray-600 font=bold" htmlFor="full-name">
-                            Name
+                            Full Name
                         </label>
                         <input
                             type="text"

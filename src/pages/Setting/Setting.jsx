@@ -266,7 +266,7 @@ const UserForm = ({ userData, onSave, photoURL }) => {
 
 export default function Setting() {
     const { currentUser } = useAuth();
-    const [userData, setUserData] = useState(null);
+    const [userData, setUserData] = useState({...currentUser, fullName: currentUser.displayName});
     const [photoURL, setPhotoURL] = useState(
         "https://img.icons8.com/?size=100&id=7820&format=png&color=000000"
     )  // user image
@@ -295,21 +295,6 @@ export default function Setting() {
             setTempObjectURL(imageUrl); // Store to clean up later
         }
     }
-
-    useEffect(() => {
-        const getUserData = async () => {
-            try {
-                const getUser = httpsCallable(functions, "getUser")
-                // httpsCallable  return an object {data: {actual data}}
-                const result = await getUser();
-                setUserData(result.data)
-            } catch (error) {
-                console.log("Failed to get user profile", error)
-            }
-        }
-        getUserData();
-    }, [])
-
 
     // Cleanup on component unmount
     useEffect(() => {

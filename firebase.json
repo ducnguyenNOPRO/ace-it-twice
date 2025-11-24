@@ -21,9 +21,23 @@
     },
     "firestore": {
       "port": 8088
-    }, 
+    },
     "pubsub": {
       "port": 8085
     }
+  },
+  "hosting": {
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
   }
 }

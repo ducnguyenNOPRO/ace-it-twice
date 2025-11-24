@@ -6,9 +6,10 @@ const prettyMapCategory = require('./constants/prettyMapCategory');
 const { validateFilters } = require('./utils/validateFilters')
 const { verifyPlaidWebhook } = require('./utils/validatePlaidWebhook');
 const { format } = require("date-fns");
-const { onSchedule } = require("firebase-functions/scheduler");
+// const { onSchedule } = require("firebase-functions/scheduler");
 const { getLast3Months } = require('./utils/getMonths')
-const {groupByCategory} = require('./utils/averageBudget')
+const { groupByCategory } = require('./utils/averageBudget')
+
 
 if (!admin.apps.length) {
   admin.initializeApp(); // Only initialize if not already done
@@ -30,7 +31,7 @@ const plaidClient = new PlaidApi(
 // context contains user auth info
 exports.createLinkToken = onCall(async (request) => {
   if (!request.auth) {
-      throw new HttpsError("Unauthenticated", "User must be logged in");
+      throw new HttpsError("unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
   const plaidRequest = {
@@ -42,7 +43,7 @@ exports.createLinkToken = onCall(async (request) => {
       language: 'en',
       redirect_uri: "http://localhost:5173/Setting",
       country_codes: ['US'],
-      webhook: "https://myapp.loca.lt/ace-it-twice/us-central1/plaidWebhook"
+      webhook: "https://plaidwebhook-vvwwgkggwa-uc.a.run.app"
   };
 
   try {
@@ -57,83 +58,83 @@ exports.createLinkToken = onCall(async (request) => {
   }
 });
 
-exports.aggregatePreviousMonthSpending = onSchedule({
-  schedule: "5 0 1 * *",
-  timeZone: "America/Los_Angeles"
-}, async (event) => {
-  console.log("Scheduled job running!", event);
+// exports.aggregatePreviousMonthSpending = onSchedule({
+//   schedule: "5 0 1 * *",
+//   timeZone: "America/Los_Angeles"
+// }, async (event) => {
+//   console.log("Scheduled job running!", event);
   
-  const now = new Date();
-  const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-  const month = now.getMonth() === 0 ? 12 : now.getMonth();
-  const year_month = `${year}-${month.toString().padStart(2, "0")}`;
+//   const now = new Date();
+//   const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+//   const month = now.getMonth() === 0 ? 12 : now.getMonth();
+//   const year_month = `${year}-${month.toString().padStart(2, "0")}`;
   
-  const startOfMonth = new Date(year, month - 1, 1, 0, 0, 0);
-  const endOfMonth = new Date(year, month, 1, 0, 0, 0, 0);
+//   const startOfMonth = new Date(year, month - 1, 1, 0, 0, 0);
+//   const endOfMonth = new Date(year, month, 1, 0, 0, 0, 0);
   
-  console.log("Start", startOfMonth);
-  console.log("End", endOfMonth);
-  try {
-// Fetch all user
-  const usersSnapshot = await admin.firestore().collection("users").get();
+//   console.log("Start", startOfMonth);
+//   console.log("End", endOfMonth);
+//   try {
+// // Fetch all user
+//   const usersSnapshot = await admin.firestore().collection("users").get();
   
-  for (const userDoc of usersSnapshot.docs) {
-    const uid = userDoc.id;
+//   for (const userDoc of usersSnapshot.docs) {
+//     const uid = userDoc.id;
   
-      const plaidItemsSnapshot = await admin.firestore()
-          .collection("users")
-          .doc(uid)
-          .collection("plaid")
-          .get();
+//       const plaidItemsSnapshot = await admin.firestore()
+//           .collection("users")
+//           .doc(uid)
+//           .collection("plaid")
+//           .get();
       
-      const monthlyCategoryTotals = {};
+//       const monthlyCategoryTotals = {};
       
-      for (const plaidItemDoc of plaidItemsSnapshot.docs) {
-          const txsSnapshot = await admin.firestore()
-              .collection("users")
-              .doc(uid)
-              .collection("plaid")
-              .doc(plaidItemDoc.id)
-              .collection("transactions")
-              .where("date", ">=", startOfMonth.toISOString())
-              .where("date", "<", endOfMonth.toISOString())
-              .get();
+//       for (const plaidItemDoc of plaidItemsSnapshot.docs) {
+//           const txsSnapshot = await admin.firestore()
+//               .collection("users")
+//               .doc(uid)
+//               .collection("plaid")
+//               .doc(plaidItemDoc.id)
+//               .collection("transactions")
+//               .where("date", ">=", startOfMonth.toISOString())
+//               .where("date", "<", endOfMonth.toISOString())
+//               .get();
           
-          txsSnapshot.forEach(txDoc => {
-            const tx = txDoc.data();
-            if (tx.amount > 0) return;
-            const category = tx.category || "Other";
-            const key = `${year_month}_${category}`;
-            if (!monthlyCategoryTotals[key]) {
-                monthlyCategoryTotals[key] = {
-                    year_month,
-                    category,
-                    total_spent: 0
-                }
-            }
-            monthlyCategoryTotals[key].total_spent += tx.amount;
-          });
-      }
-      const batch = admin.firestore().batch();
-      for (const [key, summary] of Object.entries(monthlyCategoryTotals)) {
-          const docRef = admin.firestore()
-              .collection("users")
-              .doc(uid)
-              .collection("monthlyCategorySpending")
-              .doc(key);
-          batch.set(docRef, {
-              ...summary,
-              updatedAt: FieldValue.serverTimestamp(),
-          }, { merge: true });
-      }
+//           txsSnapshot.forEach(txDoc => {
+//             const tx = txDoc.data();
+//             if (tx.amount > 0) return;
+//             const category = tx.category || "Other";
+//             const key = `${year_month}_${category}`;
+//             if (!monthlyCategoryTotals[key]) {
+//                 monthlyCategoryTotals[key] = {
+//                     year_month,
+//                     category,
+//                     total_spent: 0
+//                 }
+//             }
+//             monthlyCategoryTotals[key].total_spent += tx.amount;
+//           });
+//       }
+//       const batch = admin.firestore().batch();
+//       for (const [key, summary] of Object.entries(monthlyCategoryTotals)) {
+//           const docRef = admin.firestore()
+//               .collection("users")
+//               .doc(uid)
+//               .collection("monthlyCategorySpending")
+//               .doc(key);
+//           batch.set(docRef, {
+//               ...summary,
+//               updatedAt: FieldValue.serverTimestamp(),
+//           }, { merge: true });
+//       }
   
-    await batch.commit();
-    console.log("Completed")
-  };
-  } catch (error) {
-    console.log(error);
-  }  
-})
+//     await batch.commit();
+//     console.log("Completed")
+//   };
+//   } catch (error) {
+//     console.log(error);
+//   }  
+// })
 
 async function aggregateAfterPlaidSync(uid, transactions) {
   // Group by month + category
@@ -218,6 +219,7 @@ async function saveAccountData(uid, itemId, accounts) {
     return { success: true, message: "Accounts synced"};
   }
   catch (error) {
+    console.log(error);
     throw new HttpsError("internal", "Fail to save account.");
   }
 }
@@ -281,6 +283,7 @@ async function syncPlaidTransaction(uid, itemId) {
     // Process added + modified transactions
     // Merge account data: name and mask to transaction data
     const transactionsToSave = [...added, ...modified].map(tx => {
+      console.log(tx);
       const accountInfo = accountsMap[tx.account_id];
       return {
         transaction_id: tx.transaction_id,
@@ -344,6 +347,9 @@ async function syncPlaidTransaction(uid, itemId) {
 
 // Exchange public token for permanent access token
 exports.exchangePublicToken = onCall(async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "User must be logged in");
+    }
   //debugger;
   const public_token = request.data.public_token;
 
@@ -429,7 +435,7 @@ exports.plaidWebhook = onRequest(async (req, res) => {
 
 exports.fetchAccountsFromPlaid = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+      throw new HttpsError("unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
   const itemId = request.data.itemId
@@ -484,13 +490,14 @@ exports.fetchAccountsFromPlaid = onCall(async (request) => {
     return { success: true, message: "Accounts synced", result };
   }
   catch (error) {
+    console.log(error);
     throw new HttpsError("internal", "Fail to sync account.");
   }
 })
 
 exports.getAccounts = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+      throw new HttpsError("unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
   const itemId = request.data.itemId;
@@ -516,13 +523,14 @@ exports.getAccounts = onCall(async (request) => {
       accounts: accounts
     };
   } catch (error) {
+    console.log(error);
     throw new HttpsError("internal", "Fail to get transactions.");
   }
 })
 
 exports.fetchTransactionsFromPlaid = onCall(async (request) => {
   if (!request.auth) {
-      throw new HttpsError("Unauthenticated", "User must be logged in");
+      throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -535,7 +543,7 @@ exports.fetchTransactionsFromPlaid = onCall(async (request) => {
 // Cursor based Pagination
 exports.getTransactionsFilteredPaginated = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+      throw new HttpsError("unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
   const { itemId, pagination, filters } = request.data;
@@ -641,7 +649,7 @@ exports.getTransactionsFilteredPaginated = onCall(async (request) => {
 // Get recent transaction for Dashboard Page
 exports.getRecentTransactions = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+      throw new HttpsError("unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
   const { itemId, limit} = request.data;
@@ -681,7 +689,7 @@ exports.getRecentTransactions = onCall(async (request) => {
 // Get monthly transaction for Dashboard Page
 exports.getMonthlyTransactions = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+      throw new HttpsError("unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
   const { itemId, date } = request.data;
@@ -731,7 +739,7 @@ exports.getMonthlyTransactions = onCall(async (request) => {
 
 exports.get3MonthTransactionsPerCategory = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+      throw new HttpsError("unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
   const { itemId, category, date } = request.data;
@@ -784,7 +792,7 @@ exports.get3MonthTransactionsPerCategory = onCall(async (request) => {
 // Get all user data from firestore
 exports.getUser = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be logged in");
+      throw new HttpsError("unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
   try {
@@ -795,6 +803,7 @@ exports.getUser = onCall(async (request) => {
     }
     return userDoc.data();
   } catch (error) {
+    console.log("error", error);
     throw new HttpsError("internal", "Fail to get user profile")
   }
 })
@@ -802,7 +811,7 @@ exports.getUser = onCall(async (request) => {
 // Update user profile in Firebase Authentication
 exports.updateUserAuth = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+      throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -817,6 +826,7 @@ exports.updateUserAuth = onCall(async (request) => {
     })
     return {success: true, message: "User profile updated"}
   } catch (error) {
+    console.log(error);
     throw new HttpsError("internal", "Fail to update user")
   }
 })
@@ -824,7 +834,7 @@ exports.updateUserAuth = onCall(async (request) => {
 // Update user in firestore database
 exports.updateUser = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+      throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -835,13 +845,14 @@ exports.updateUser = onCall(async (request) => {
     await admin.firestore().collection("users").doc(uid).set(userData, { merge: true })
     return {success: true, message: "User profile updated"}
   } catch (error) {
+    console.log(error);
     throw new HttpsError("internal", "Fail to update user")
   }
 })
 
 exports.addTransaction = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -875,13 +886,14 @@ exports.addTransaction = onCall(async (request) => {
     await newTxDocRef.set(newTxDocData);
     return {success: true, message: `Transaction added successfully`}
   } catch (error) {
+    console.log(error);
     throw new HttpsError("internal", "Fail to add transaction")
   }
 })
 
 exports.editTransactionById= onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -919,7 +931,7 @@ exports.editTransactionById= onCall(async (request) => {
 
 exports.deleteTransactionById= onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
   const transactionToDeleteId = request.data.transactionToDeleteId;  // Transaction Id
@@ -946,13 +958,14 @@ exports.deleteTransactionById= onCall(async (request) => {
     await txDocRef.delete();
     return {success: true, message: `Transaction deleted successfully`}
   } catch (error) {
+    console.log(error);
     throw new HttpsError("internal", "Fail to delete transaction")
   }
 })
 
 exports.deleteBatchTransaction = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -992,7 +1005,7 @@ exports.deleteBatchTransaction = onCall(async (request) => {
 
 exports.getGoals = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
 
@@ -1024,7 +1037,7 @@ exports.getGoals = onCall(async (request) => {
 
 exports.addGoal = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -1057,13 +1070,14 @@ exports.addGoal = onCall(async (request) => {
     await newGoalDocRef.set(newGoalDocData);
     return {success: true, message: `Goal added successfully`}
   } catch (error) {
+    console.log(error);
     throw new HttpsError("internal", "Fail to add transaction")
   }
 })
 
 exports.addGoalFund= onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -1101,7 +1115,7 @@ exports.addGoalFund= onCall(async (request) => {
 
 exports.withdrawalGoalFund= onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -1137,7 +1151,7 @@ exports.withdrawalGoalFund= onCall(async (request) => {
 
 exports.editGoalById= onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -1169,7 +1183,7 @@ exports.editGoalById= onCall(async (request) => {
 
 exports.getBudgets = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
   const { month, year } = request.data;
@@ -1216,7 +1230,7 @@ exports.getBudgets = onCall(async (request) => {
 // Need to fix to get spendings for specific sets of categories (unbudgeted ones for current month)
 exports.getAverageBudget = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
   const uid = request.auth.uid;
   const { currentMonth} = request.data.requestData;
@@ -1248,7 +1262,7 @@ exports.getAverageBudget = onCall(async (request) => {
 
 exports.addBudget = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -1276,13 +1290,14 @@ exports.addBudget = onCall(async (request) => {
     await newBudgetDocRef.set(newBudgetDocData);
     return {success: true, message: `Budget added successfully`}
   } catch (error) {
+    console.log(error);
     throw new HttpsError("internal", "Fail to add budget")
   }
 })
 
 exports.addMultipleBudgets = onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -1316,13 +1331,14 @@ exports.addMultipleBudgets = onCall(async (request) => {
     await batch.commit();
     return {success: true, message: `${budgetArray.length} added successfully`}
   } catch (error) {
+    console.log(error);
     throw new HttpsError("internal", `Fail to add ${budgetArray.length} budget`)
   }
 })
 
 exports.editBudgetById= onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -1354,7 +1370,7 @@ exports.editBudgetById= onCall(async (request) => {
 
 exports.editMultipleBudgets= onCall(async (request) => {
   if (!request.auth) {
-    throw new HttpsError("Unauthenticated", "User must be logged in");
+    throw new HttpsError("unauthenticated", "User must be logged in");
   }
 
   const uid = request.auth.uid;
@@ -1381,5 +1397,31 @@ exports.editMultipleBudgets= onCall(async (request) => {
   } catch (error) {
     console.error(error);
     throw new HttpsError("internal", "Fail to update multiple budgets")
+  }
+})
+
+exports.getItemId = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in");
+  }
+  const uid = request.uid;
+
+  try {
+    const ref = admin.firestore()
+      .collection('users')
+      .doc(uid)
+      .collection('plaid');
+
+    const snapshot = await ref.get();
+
+    const itemId = snapshot.docs[0].id;
+
+    return {
+      success: true,
+      itemId
+    }
+  } catch (error) {
+    console.log(error);
+    throw new HttpsError("internal", "Fail to get recent transactions.");
   }
 })
