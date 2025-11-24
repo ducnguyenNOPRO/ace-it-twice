@@ -17,7 +17,8 @@ export default function Dashboard() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { currentUser } = useAuth();
   const { itemId } = useItemId(currentUser.uid);
-    const localBalance = useLocalBalance(itemId);
+  const localBalance = useLocalBalance(itemId);
+  const now = new Date();
   const { data: recentTransactionsResponse, isLoading: loadingTransactions } = useQuery(
     createRecentTransactionsQueryOptions(
       { itemId },
@@ -30,7 +31,13 @@ export default function Dashboard() {
     ))
   const { data: monthlyTransactionsResponse, isLoading: loadingMonthlyTransactions } = useQuery(
     createMonthlyTransactionsQueryOptions(
-      { itemId},
+      {
+        itemId,
+        date: {
+          month: now.getMonth() + 1, // used 1-based index for query key
+          year: now.getFullYear()
+        }
+      },
       {
         staleTime: Infinity,
         refetchOnWindowFocus: false,
@@ -64,7 +71,6 @@ export default function Dashboard() {
     setCurrentIndex(prev => (prev === accounts.length - 1 ? 0 : prev + 1));
   }
 
-  console.log("MonthlySpending", monthlySpendingData)
   if (loadingTransactions || loadingAccounts || loadingMonthlyTransactions) {
     return <div>Loading...</div>
   }

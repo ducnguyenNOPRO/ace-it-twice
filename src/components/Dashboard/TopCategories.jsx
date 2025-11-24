@@ -1,9 +1,8 @@
 import React from "react";
-import prettyMapCategory from "../../constants/prettyMapCategory";
 import { createBudgetsQueryOptions } from "../../util/createQueryOptions";
 import { useQuery } from "@tanstack/react-query";
 export default function Topcategoryegories({ categorySpendingData }) {
-    if (!categorySpendingData || categorySpendingData.sorted?.length == 0) {
+    if (!categorySpendingData || Object.keys(categorySpendingData).length == 0) {
         return (
             <div className="text-lg">
                 No Monthly Spending Data
@@ -12,7 +11,7 @@ export default function Topcategoryegories({ categorySpendingData }) {
     }
     const now = new Date();
 
-    const { data: budgetsListResponse } = useQuery(
+    const { data: budgetsListResponse, isLoading } = useQuery(
         createBudgetsQueryOptions(
             {
                 month: now.getMonth() + 1,
@@ -24,43 +23,53 @@ export default function Topcategoryegories({ categorySpendingData }) {
                 refetchOnReconnect: false
             }));
     
-    const categoryBudgetList = budgetsListResponse?.budgets ?? [];
+    if (!budgetsListResponse || isLoading) {
+        return <div>Loading Categories....</div>
+    }
+    
+    const budgetsMap = Object.fromEntries(
+        (budgetsListResponse?.budgets ?? []).map(b => [b.category_name, b])
+    );
     return (
         <>
             <div className="mt-5 grid grid-cols-[auto_auto_0.8fr_auto] gap-y-5 gap-x-3">
-                {categoryBudgetList.map((category) => {
-                    const percent = (categorySpendingData[category.category_name]?.total || 0) / category.target_amount * 100;
+                {Object.entries(categorySpendingData).map(([categoryName, data]) => {
+                    const spending = data.total ?? 0;
+                    const budget = budgetsMap[categoryName]?.target_amount; // maybe undefined
+                    const percent = budget ? spending / budget * 100 : 101;
                     return (
-                        <React.Fragment key={category.budget_id}>
-                            <div
-                                className={`flex items-center gap-2 rounded-full px-3 py-1 sm:w-fit overflow-hidden 
-                                    ${categorySpendingData[category.category_name]?.color || prettyMapCategory[category.category_name].color}
-                                    `}
-                                title={category.category_name}
-                            >
-                                <img
-                                    className="w-5 h-5 flex-shrink-0"
-                                    src={categorySpendingData[category.category_name]?.icon
-                                            || prettyMapCategory[category.category_name].icon}
-                                    alt={`${category.category_name} Icon`} />
-                                <span className="text-sm font-bold truncategorye hidden md:inline">
-                                    {category.category_name}
+                        <React.Fragment key={categoryName}>
+                            
+                            {/* Category name + icon */}
+                            <div className={`flex items-center gap-2 rounded-full px-3 py-1 ${data.color}`}>
+                                <img src={data.icon} className="w-5 h-5" />
+                                <span className="text-sm font-bold hidden md:inline">
+                                    {categoryName}
                                 </span>
                             </div>
+
+                            {/* Total spending */}
                             <div className="text-md text-right font-medium text-gray-700">
-                                ${categorySpendingData[category.category_name]?.total.toFixed(2) || category.spent_amount}
+                                ${spending.toFixed(2)}
                             </div>
+
+                            {/* Progress bar */}
                             <div className="flex items-center">
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div
-                                        className={`${percent < 100 ? "bg-green-500" : "bg-red-500"} h-2 rounded-full`}
-                                        style={{ width: `${Math.min(percent, 100)}%` }}
-                                    ></div>
-                                </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                className={`${percent <= 100 ? "bg-green-500" : "bg-red-500"} h-2 rounded-full`}
+                                style={{ width: `${Math.min(percent, 100)}%` }}
+                                ></div>
                             </div>
-                            <span className="text-md font-medium text-gray-700">${Math.round(category.target_amount)}</span>
+                            </div>
+
+                            {/* Target amount OR “No budget” */}
+                            <span className="text-md font-medium text-gray-700">
+                                {budget ? `$${Math.round(budget)}` : "No Budget"}
+                            </span>
+
                         </React.Fragment>
-                    )
+                        );
                 })}
             </div>   
         </>

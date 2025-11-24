@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { parse, format } from "date-fns";
 import prettyMapCategory from "../constants/prettyMapCategory";
 
 // For all category
@@ -8,13 +8,15 @@ export const getMonthlySpendingData = (transactions) =>  {
     const monthlyTotals = {};   // { {date: MMM d, total: string} }
 
     spendingOnly.forEach(tx => {
-        const date = format(new Date(tx.date), "MMM d");   // "Oct 1"
+        // Make sure use UTC time
+        const d = parse(tx.date, "yyyy-MM-dd", new Date());
+        const date = format(d, "MMM d");    
         monthlyTotals[date] = (monthlyTotals[date] || 0) + tx.amount;
     });
 
     const sorted = Object.entries(monthlyTotals)
         .sort(([a], [b]) => new Date(a) - new Date(b))
-        .map(([date, total]) => ({ date, total: Math.round(total) * -1}));
+        .map(([date, total]) => ({ date, total: total * -1}));
     return sorted;
 }
 
