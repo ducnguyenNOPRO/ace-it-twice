@@ -159,7 +159,7 @@ export default function Goal() {
                 
                 {/* Page Content*/}
                 <div className="flex-1 flex flex-col lg:flex-row overflow-auto">
-                    <div className="flex flex-col w-full lg:w-[60%] lg:border-r">
+                    <div className="flex flex-col not-lg:w-full w-[60%] border-r">
                         {/* Topbar*/}
                         <Topbar
                             currentDate={currentDate}

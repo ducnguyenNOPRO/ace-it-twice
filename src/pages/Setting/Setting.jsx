@@ -296,6 +296,21 @@ export default function Setting() {
         }
     }
 
+    useEffect(() => {
+        const getUserData = async () => {
+            try {
+                const getUser = httpsCallable(functions, "getUser")
+                // httpsCallable  return an object {data: {actual data}}
+                const result = await getUser();
+                setUserData(result.data)
+            } catch (error) {
+                console.log("Failed to get user profile", error)
+            }
+        }
+        getUserData();
+    }, [])
+
+
     // Cleanup on component unmount
     useEffect(() => {
         return () => {

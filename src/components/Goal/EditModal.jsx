@@ -13,6 +13,8 @@ export default function EditGoalModal({ selectedGoalItem, setSelectedGoalItem, s
     const [formValues, setFormValues] = useState(selectedGoalItem);
     const [errors, setErrors] = useState({});
     const goalMonthlySaving = useGoalMonthlySaving(formValues);
+
+    const progress = formValues.saved_amount / formValues.target_amount * 100;
     useEffect(() => {
         setFormValues(selectedGoalItem);
     }, [selectedGoalItem])
@@ -143,11 +145,11 @@ export default function EditGoalModal({ selectedGoalItem, setSelectedGoalItem, s
                         {errors.goal_name}
 
                         <div className="flex flex-col gap-1 my-5">
-                            <p>Progress ({(formValues.progress).toFixed(2)}%)</p>
+                            <p>Progress ({progress.toFixed(2)}%)</p>
                             <div className="bg-gray-200 rounded-full h-2">
                                 <div
-                                    className="bg-yellow-500 h-2 rounded-full"
-                                    style={{ width: `${(formValues.progress)}%` }}
+                                    className={`${progress < 100 ? "bg-yellow-500" : "bg-green-500"} h-2 rounded-full`}
+                                    style={{ width: `${Math.min(progress, 100)}%` }}
                                 ></div>
                             </div>
                         </div>

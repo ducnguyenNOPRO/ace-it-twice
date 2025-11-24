@@ -35,7 +35,7 @@ export default function MonthlySpending({ monthlySpendingData }) {
                         tickFormatter={(value) => `$${value}`}
                     />
                     <Tooltip
-                        formatter={(value) => `$${value}`}    
+                        formatter={(value) => `$${value.toFixed(2)}`}    
                         labelClassName="text-sm font-semibold"
                     />
                     <Legend verticalAlign="top" />
