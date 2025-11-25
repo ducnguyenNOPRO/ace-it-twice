@@ -2,7 +2,7 @@ import { FaPlusCircle } from "react-icons/fa";
 import { BiSolidDownArrow } from "react-icons/bi";
 import { BiSolidRightArrow } from "react-icons/bi";
 import { useState } from "react";
-import prettyMapCategory from "../../constants/prettyMapCategory";
+import {prettyMapCategory} from "../../constants/prettyMapCategory";
 
 
 export default function BudgetTable(
@@ -185,7 +185,7 @@ export default function BudgetTable(
                                     </td>
 
                                     <td className="py-2 px-4 text-right font-medium tracking-wide">
-                                        ${categorySpendingData[category.category_name]?.total.toFixed(2)}
+                                        ${spending.toFixed(2)}
                                     </td>
                                     <td className="py-2 px-4">
                                         <div className="w-full bg-gray-200 rounded-full h-2">
@@ -199,7 +199,7 @@ export default function BudgetTable(
                                             ></div>
                                         </div>
                                     </td>
-                                    <td className="py-2 px-4 font-medium tracking-wide">${Math.ceil(category.target_amount)}</td>
+                                    <td className="py-2 px-4 font-medium tracking-wide">${(category.target_amount).toFixed(2)}</td>
                                 </tr>
                             )
                         })}

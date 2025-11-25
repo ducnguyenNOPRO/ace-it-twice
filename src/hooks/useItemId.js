@@ -15,7 +15,6 @@ export const useItemId = (uid) => {
                 const snap = await getDocs(ref);
                 if (!snap.empty) {
                     const id = snap.docs[0].id;
-                    console.log("ItemId in hook", id);
                     setItemId(id);
                 } else {
                     throw new Error("No Plaid ItemId found");

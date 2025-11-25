@@ -32,7 +32,7 @@ export default function MonthlySpending({ monthlySpendingData }) {
                     />
                     <YAxis
                         domain={[0, 'dataMax + 50']}  // matches the visible range in the image
-                        tickFormatter={(value) => `$${value}`}
+                        tickFormatter={(value) => `$${value.toFixed(2)}`}
                     />
                     <Tooltip
                         formatter={(value) => `$${value.toFixed(2)}`}    

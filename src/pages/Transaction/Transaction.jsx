@@ -8,7 +8,7 @@ import AddAndEditTransactionModal from '../../components/Transaction/Modal'
 import RowActionMenu from '../../components/Transaction/RowActionMenu'
 import { IoAddCircleSharp} from 'react-icons/io5'
 import { useItemId } from '../../hooks/useItemId'
-import prettyMapCategory from '../../constants/prettyMapCategory'
+import {prettyMapCategory } from '../../constants/prettyMapCategory'
 import SearchTransaction from '../../components/Transaction/SearchBar'
 import FilterTransaction from '../../components/Transaction/Filter'
 import {useQuery, useQueryClient } from '@tanstack/react-query'
@@ -35,11 +35,11 @@ const CategoryCell = React.memo(({ value }) => (
   </div>
 ));
 
-
 export default function Transaction() {
   const { currentUser } = useAuth();
   const { itemId, loadingItemId } = useItemId(currentUser.uid);
   const queryClient = useQueryClient();
+  const [colorMap, setColorMap] = React.useState({});
   const [lastDocumentIds, setLastDocumentIds] = useState({})
   const [paginationModel, setPaginationModel] = useState({  // Manually handle page model
     page: 0,
@@ -320,15 +320,34 @@ export default function Transaction() {
             <div className="flex gap-2 mx-2 mb-2">
               {addFilterToUI.map((filter) => {
                 let displayValue = displayFilterValue(filter);
-                // Generate random background color in HSL
-                const hue = Math.floor(Math.random() * 360);
-                const bgColor = `hsl(${hue}, 70%, 60%)`;
+
+                if (filter.type === "category") {
+                  const colorClass = prettyMapCategory[filter.value]?.color || ""; // Tailwind class string
+                  return (
+                    <div
+                      key={`${filter.type}-${displayValue}`}
+                      className={`flex gap-7 py-1 px-2 font-semibold w-fit rounded hover:opacity-90 cursor-pointer ${colorClass}`}
+                      onClick={() => handleDeleteFilters(filter)}
+                    >
+                      <span>{displayValue}</span>
+                      <div>
+                        X
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (!colorMap[filter.value]) {
+                  const hue = Math.floor(Math.random() * 360);
+                  setColorMap(prev => ({ ...prev, [filter.value]: `hsl(${hue}, 70%, 60%)` }));
+                }
+                const bgColorStyle = colorMap[filter.value] || "transparent";
                 return (
                   <div
                     key={`${filter.type}-${displayValue}`}
-                    className="flex gap-7 font-semibold py-1 px-2 text-white w-fit rounded hover:opacity-90 cursor-pointer"
+                    className={`flex gap-7 py-1 px-2 font-semibold text-white w-fit rounded hover:opacity-90 cursor-pointer`}
                     onClick={() => handleDeleteFilters(filter)}
-                    style={{ backgroundColor: bgColor}}
+                    style={{ backgroundColor: bgColorStyle }}
                   >
                     <span>{displayValue}</span>
                     <div>

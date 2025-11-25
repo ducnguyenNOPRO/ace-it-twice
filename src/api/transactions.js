@@ -119,7 +119,6 @@ export async function deleteSingleTransaction(transactionToDeleteId, itemId) {
 export async function deleteBatchTransaction(selectedTransactionIds, itemId) {
     if (!itemId) throw new Error("Frontend: Missing itemId");
     if (selectedTransactionIds.length === 0) {
-        console.log("No transactions to delete");
         return;
     }
 

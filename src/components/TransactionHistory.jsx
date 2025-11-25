@@ -1,7 +1,7 @@
 import React from 'react'
 import { MdArrowOutward } from "react-icons/md";
 import { Link } from 'react-router-dom';
-import prettyMapCategory from '../constants/prettyMapCategory';
+import {prettyMapCategory} from '../constants/prettyMapCategory';
 
 export default function TransactionHistory({ recentTransactions }) {
     if (recentTransactions.length == 0) {

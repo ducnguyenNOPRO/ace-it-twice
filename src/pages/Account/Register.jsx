@@ -57,7 +57,6 @@ export default function Register() {
         if (!passwordValidation(password)) {
             return
         }
-        console.log("Passed validation");
         try {
             await registerUserWithEmailAndPassword(email, password, fullName);
             navigate("/Account/Login")  // back to login page after succesfull created account

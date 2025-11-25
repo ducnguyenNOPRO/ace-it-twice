@@ -141,7 +141,7 @@ async function aggregateAfterPlaidSync(uid, transactions) {
   const monthlyCategoryTotals = {};
 
   // Group spending transactions by month + category
-  transactions.filter(tx => tx.amount < 0).forEach(tx => {
+  transactions.forEach(tx => {
     const date = new Date(tx.date);
     const year_month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     const category = tx.category || "Other";
@@ -166,7 +166,9 @@ async function aggregateAfterPlaidSync(uid, transactions) {
         .collection("monthlyCategorySpending")
         .doc(key);
       batch.set(docRef, {
-        ...summary,
+        year_month: summary.year_month,
+        category: summary.category,
+        total_spent: FieldValue.increment(summary.total_spent),
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
     }
@@ -283,7 +285,6 @@ async function syncPlaidTransaction(uid, itemId) {
     // Process added + modified transactions
     // Merge account data: name and mask to transaction data
     const transactionsToSave = [...added, ...modified].map(tx => {
-      console.log(tx);
       const accountInfo = accountsMap[tx.account_id];
       return {
         transaction_id: tx.transaction_id,
@@ -330,8 +331,10 @@ async function syncPlaidTransaction(uid, itemId) {
     // Save Account data
     saveAccountData(uid, itemId, response.data.accounts);
 
+    const spendingOnly = transactionsToSave.filter(tx => tx.amount < 0);
+
     // Calculate monthly spending
-    aggregateAfterPlaidSync(uid, transactionsToSave);
+    aggregateAfterPlaidSync(uid, spendingOnly);
 
     return {
       success: true,
@@ -710,8 +713,6 @@ exports.getMonthlyTransactions = onCall(async (request) => {
     // Current month
     const startDate = format(new Date(year, month -1, 1), "yyyy-MM-dd");
     const endDate = format(new Date(year, month, 0), "yyyy-MM-dd");
-
-    console.log(startDate, endDate)
     
     const query = transactionsRef
       .where("removed", "!=", true)
@@ -760,8 +761,6 @@ exports.get3MonthTransactionsPerCategory = onCall(async (request) => {
     // Current month
     const startDate = format(new Date(year, month - 3, 1), "yyyy-MM-dd");
     const endDate = format(new Date(year, month, 0), "yyyy-MM-dd");
-
-    console.log(startDate, endDate)
     
     const query = transactionsRef
       .where("removed", "!=", true)
@@ -884,6 +883,7 @@ exports.addTransaction = onCall(async (request) => {
 
     // Add the transaction
     await newTxDocRef.set(newTxDocData);
+    if (newTxDocData.amount < 0) aggregateAfterPlaidSync(uid, [newTxDocData]);
     return {success: true, message: `Transaction added successfully`}
   } catch (error) {
     console.log(error);
@@ -920,8 +920,43 @@ exports.editTransactionById= onCall(async (request) => {
       .doc(itemId)
       .collection("transactions")
       .doc(transactionToUpdateId);
+    
+    const oldDocSnap = await transactionDocRef.get();
+
+    if (!oldDocSnap.exists) {
+      throw new HttpsError("not-found", "Transaction not found");
+    }
+
+    const oldTransaction = oldDocSnap.data();
 
     await transactionDocRef.update(transactionData);
+
+    // Prepare aggregation calls
+    // Define arrays to hold transactions for decrement and increment steps
+    const decrementTxs = [];
+    const incrementTxs = [];
+
+    // If old transaction was spending, decrement its amount
+    if (oldTransaction.amount < 0) {
+      decrementTxs.push({
+        ...oldTransaction,
+        amount: oldTransaction.amount * -1, // invert to decrement
+      });
+    }
+
+    // If new transaction is spending, increment its amount
+    if (transactionData.amount < 0) {
+      incrementTxs.push(transactionData);
+    }
+
+    const promises = [];
+    if (decrementTxs.length > 0) {
+      promises.push(aggregateAfterPlaidSync(uid, decrementTxs));
+    }
+    if (incrementTxs.length > 0) {
+      promises.push(aggregateAfterPlaidSync(uid, incrementTxs));
+    }
+    await Promise.all(promises);
     return {success: true, message: `Transaction updated successfully`}
   } catch (error) {
     console.error(error);
@@ -1194,8 +1229,6 @@ exports.getBudgets = onCall(async (request) => {
   // 0-based index
   const startOfMonth = new Date(year, month - 1, 1).toISOString(); 
   const endOfMonth = new Date(year, month, 0).toISOString(); // last day of month
-
-  console.log(startOfMonth, endOfMonth);
 
   try {
     const budgetsRef = admin.firestore()

@@ -3,7 +3,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import prettyMapCategory from "../../constants/prettyMapCategory";
+import {prettyMapCategory} from "../../constants/prettyMapCategory";
 import { addMultipleBudgets } from "../../api/budget";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -15,7 +15,6 @@ export default function AutoSetBudgetModal({ open, onClose, categoryBudgetList, 
             .filter(([cat]) => !categoriesName.has(cat));
 
     const refecthBudget = (month, year) => {
-        console.log(month, year);
         queryClient.invalidateQueries({
             queryKey: ["budgets", { month, year }]
         })
@@ -31,7 +30,6 @@ export default function AutoSetBudgetModal({ open, onClose, categoryBudgetList, 
 
         // end of month
         const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
-        console.log(endDate);
         const endDateFormatted = endDate.toLocaleString("en-US", {
             day: "2-digit",
             month: "short",

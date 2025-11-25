@@ -1,5 +1,5 @@
 import { parse, format } from "date-fns";
-import prettyMapCategory from "../constants/prettyMapCategory";
+import {prettyMapCategory} from "../constants/prettyMapCategory";
 
 // For all category
 export const getMonthlySpendingData = (transactions) =>  {

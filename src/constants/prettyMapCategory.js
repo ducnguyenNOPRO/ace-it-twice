@@ -86,4 +86,24 @@ const prettyMapCategory = {
     }
 };
 
-export default prettyMapCategory;
+const prettyMapCategoryBgOnly = {
+  Entertainment: { bg: "bg-purple-100" },
+  Food: { bg: "bg-yellow-100" },
+  Healthcare: { bg: "bg-red-100" },
+  Housing: { bg: "bg-blue-100" },
+  Transportation: { bg: "bg-green-100" },
+  Utilities: { bg: "bg-indigo-100" },
+  Shopping: { bg: "bg-pink-100" },
+  Income: { bg: "bg-green-100" },
+  Transfer_in: { bg: "bg-gray-100" },
+  Transfer_out: { bg: "bg-gray-100" },
+  Bank_fees: { bg: "bg-rose-100" },
+  Loans: { bg: "bg-orange-100" },
+  Investments: { bg: "bg-teal-100" },
+  Personal_Care: { bg: "bg-fuchsia-100" },
+  Subscription: { bg: "bg-cyan-100" },
+  Travel: { bg: "bg-sky-100" },
+  Other: { bg: "bg-zinc-100" }
+};
+
+export { prettyMapCategory, prettyMapCategoryBgOnly };

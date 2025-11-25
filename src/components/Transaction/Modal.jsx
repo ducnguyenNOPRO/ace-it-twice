@@ -8,7 +8,7 @@ import DialogActions from "@mui/material/DialogActions"
 import Button from "@mui/material/Button"
 import Tooltip from "@mui/material/Tooltip"
 import { IoIosHelpCircleOutline } from "react-icons/io"
-import prettyMapCategory from "../../constants/prettyMapCategory"
+import {prettyMapCategory} from "../../constants/prettyMapCategory"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { addTransaction, editTransactionById } from "../../api/transactions"
 import { createAccountsQueryOptions, createTransactionsQueryOptions } from "../../util/createQueryOptions"
@@ -196,7 +196,7 @@ export default function AddAndEditTransactionModal({ open, onClose, setPaginatio
                 ...formValues,
                 merchant_name_lower: formValues.merchant_name.toLowerCase(),
                 category_lower: formValues.category.toLowerCase(),
-                amount: Number(formValues.amount),
+                amount: Number(formValues.amount) * -1,
                 amount_filter: amount < 0 ? amount * -1 : amount,
                 account_mask: account.mask,
                 account_id: account.account_id,
