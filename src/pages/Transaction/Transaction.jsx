@@ -25,7 +25,7 @@ const CategoryCell = React.memo(({ value }) => (
         ${prettyMapCategory[value]?.color ?? prettyMapCategory.Other.color}
       `}>
       <img
-        src={prettyMapCategory[value]?.icon || "../../public/icons/badge-question-imark.svg"}
+        src={prettyMapCategory[value]?.icon || "/icons/badge-question-imark.svg"}
         alt="Category Icon"
       />
       <span className="text-sm font-bold sm:truncate hidden md:inline">

@@ -54,7 +54,7 @@ export default function TransactionHistory({ recentTransactions }) {
                             {/* Icon */}
                             <img
                                 src={prettyMapCategory[tx.category].icon
-                                    || "../../public/icons/badge-question-imark.svg"}
+                                    || "/icons/badge-question-imark.svg"}
                                 alt="Category Icon"
                                 className="m-auto"
                             />
