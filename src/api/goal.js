@@ -70,9 +70,6 @@ export async function editGoalById(goalToUpdateId, goalData, onClose) {
     if (!goalToUpdateId) throw new Error("Frontend: Missing goalId");
     if (!goalData) throw new Error("Frontend: Missing goal to update");
 
-    console.log("ID", goalToUpdateId);
-    console.log("Data", goalData);
-
     const editGoalById = httpsCallable(functions, "editGoalById");
     await showToastDuringAsync(
         editGoalById({ goalToUpdateId, goalData }),

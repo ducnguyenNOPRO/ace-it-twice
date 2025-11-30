@@ -102,7 +102,6 @@ export default function Goal() {
     //return [{category: {total, icon, color}}]
     const categorySpendingData = useMemo(() => getSpendingDataByCategorySorted(monthlyTransactions), [monthlyTransactions]);
     
-     console.log(queryClient.getQueryCache().getAll())
     const handleOpenAddModal = async () => {
         setIsAddModalOpen(true);
     }
@@ -238,6 +237,8 @@ export default function Goal() {
                         open={isAddCategoryModelOpen}
                         onClose={handleCloseCategoryModal}
                         currentDate={currentDate}
+                        categoryBudgetList={categoryBudgetList}
+                        categorySpendingData={categorySpendingData}
                     />
                 )}
                 {isAddFundModalOpen && selectedGoalItem && (

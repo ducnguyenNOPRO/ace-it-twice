@@ -2,7 +2,7 @@ import {useState } from "react";
 import { useQuery} from "@tanstack/react-query"
 import { IoIosOptions } from "react-icons/io";
 import { createAccountsQueryOptions } from "../../util/createQueryOptions";
-import prettyMapCategory from "../../constants/prettyMapCategory";
+import {prettyMapCategory} from "../../constants/prettyMapCategory";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import { IoSend } from "react-icons/io5";

@@ -1,7 +1,7 @@
 import React from 'react'
 import { MdArrowOutward } from "react-icons/md";
 import { Link } from 'react-router-dom';
-import prettyMapCategory from '../constants/prettyMapCategory';
+import {prettyMapCategory} from '../constants/prettyMapCategory';
 
 export default function TransactionHistory({ recentTransactions }) {
     if (recentTransactions.length == 0) {
@@ -54,7 +54,7 @@ export default function TransactionHistory({ recentTransactions }) {
                             {/* Icon */}
                             <img
                                 src={prettyMapCategory[tx.category].icon
-                                    || "../../public/icons/badge-question-imark.svg"}
+                                    || "/icons/badge-question-imark.svg"}
                                 alt="Category Icon"
                                 className="m-auto"
                             />

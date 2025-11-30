@@ -1,5 +1,5 @@
 import {useState, useEffect} from "react";
-import prettyMapCategory from "../../../constants/prettyMapCategory"
+import {prettyMapCategory} from "../../../constants/prettyMapCategory"
 import useDebounce from "../../../hooks/useDebounce"
 import {
     BarChart,
@@ -368,7 +368,7 @@ export default function DetailCategoryPanel(
                                         {tx.category}
                                     </span>
                                 </div>
-                                <div className="text-right font-medium">${tx.amount_filter}</div>
+                                <div className={`text-right font-medium ${tx.amount < 0 ? "" : "text-green-500"}`}>${tx.amount_filter}</div>
                             </div>
                         ))}
                     </div>

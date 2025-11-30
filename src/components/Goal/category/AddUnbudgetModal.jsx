@@ -29,7 +29,6 @@ export default function AddUnbudgetModal({ open, onClose, currentDate, categoryN
     }
     
     const refecthBudget = (month, year) => {
-        console.log(month, year);
         queryClient.invalidateQueries({
             queryKey: ["budgets", { month, year }]
         })
@@ -56,7 +55,6 @@ export default function AddUnbudgetModal({ open, onClose, currentDate, categoryN
 
         // end of month
         const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-        console.log(endDate.getMonth());
         const endDateFormatted = now.toLocaleString("en-US", {
             day: "2-digit",
             month: "short",

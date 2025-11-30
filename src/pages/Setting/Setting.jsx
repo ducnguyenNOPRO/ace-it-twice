@@ -163,23 +163,20 @@ const UserForm = ({ userData, onSave, photoURL }) => {
         try {
             // Update user in Firestore
             const updateUser = httpsCallable(functions, "updateUser");
-            const result = await updateUser({ ...formValues });
+            await updateUser({ ...formValues });
             // httpsCallable alway return an objec like {data: {actual data}}
-            console.log("Saved to Firestore result:", result.data.message)
 
             // Update user in Firebase Auth
             const updateUserAuth = httpsCallable(functions, "updateUserAuth");
-            const resultAuth = await updateUserAuth({
+            await updateUserAuth({
                 fullName: formValues.fullName,
                 preferedName: formValues.preferedName,
                 photoURL
             });
-            console.log("Saved to Firebase Auth result:", resultAuth.data.message)
 
             // Re-fetch updated user profile 
             const getUser = httpsCallable(functions, "getUser");
             const resultUser = await getUser();
-            console.log("User profile", resultUser.data);
             onSave(resultUser.data);
 
         } catch (error) {
@@ -290,11 +287,24 @@ export default function Setting() {
             }
             // Create a temporary URL to preview the image
             const imageUrl = URL.createObjectURL(file);
-            console.log("Temporary object URL:", imageUrl);
             setPhotoURL(imageUrl);
             setTempObjectURL(imageUrl); // Store to clean up later
         }
     }
+
+    useEffect(() => {
+        const getUserData = async () => {
+            try {
+                const getUser = httpsCallable(functions, "getUser")
+                // httpsCallable  return an object {data: {actual data}}
+                const result = await getUser();
+                setUserData(result.data)
+            } catch (error) {
+                console.log("Failed to get user profile", error)
+            }
+        }
+        getUserData();
+    }, [])
 
 
     // Cleanup on component unmount

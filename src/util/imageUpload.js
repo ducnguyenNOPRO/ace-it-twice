@@ -10,7 +10,6 @@ async function uploadDefaultImage() {
         await uploadBytes(imageRef, blob);
 
         const url = await getDownloadURL(imageRef);
-        console.log("Default user image uploaded! URL:", url);
 
         return url;
     } catch (error) {

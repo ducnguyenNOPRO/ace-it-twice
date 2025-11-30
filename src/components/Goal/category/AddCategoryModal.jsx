@@ -5,24 +5,27 @@ import DialogTitle from "@mui/material/DialogTitle"
 import TextField from "@mui/material/TextField"
 import Button from "@mui/material/Button"
 import MenuItem from "@mui/material/MenuItem"
-import prettyMapCategory from "../../../constants/prettyMapCategory"
+import { prettyMapCategory } from "../../../constants/prettyMapCategory"
 import { useMemo, useState } from "react"
 import { addBudget } from "../../../api/budget"
 import { useQueryClient } from "@tanstack/react-query"
 
 
-export default function AddCategoryModal({ open, onClose, currentDate }) {
+export default function AddCategoryModal({ open, onClose, currentDate, categoryBudgetList }) {
     const [errors, setErrors] = useState({});
     const queryClient = useQueryClient();
-    
+    const categoriesName = new Set(categoryBudgetList.map(cat => cat.category_name));
+    const unbudgetCategories =
+        Object.entries(prettyMapCategory)
+            .filter(([categoryName]) => !categoriesName.has(categoryName));
 
     // Memmoize category options to prevent re-rendering
     const categoryOptions = useMemo(() => {
-        return Object.entries(prettyMapCategory).map(([key]) => 
+        return unbudgetCategories.map(([categoryName]) => 
             (
             <MenuItem
-                key={key}
-                value={key}
+                key={categoryName}
+                value={categoryName}
                 sx={{
                     '&:hover': {
                         backgroundColor: "#def6f8",
@@ -30,7 +33,7 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
                     }
                 }}
             >
-                {key}
+                {categoryName}
             </MenuItem>
         ))
     }, [])
@@ -55,7 +58,6 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
     }
     
     const refecthBudget = (month, year) => {
-        console.log(month, year);
         queryClient.invalidateQueries({
             queryKey: ["budgets", { month, year }]
         })
@@ -82,7 +84,6 @@ export default function AddCategoryModal({ open, onClose, currentDate }) {
 
         // end of month
         const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
-        console.log(endDate);
         const endDateFormatted = now.toLocaleString("en-US", {
             day: "2-digit",
             month: "short",

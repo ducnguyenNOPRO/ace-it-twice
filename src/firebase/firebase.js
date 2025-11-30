@@ -1,9 +1,8 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth, connectAuthEmulator } from "firebase/auth"
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
-import { getStorage } from "firebase/storage";
+import { getAuth, connectAuthEmulator} from "firebase/auth"
+import { getFirestore, connectFirestoreEmulator} from 'firebase/firestore';
+import { getFunctions, connectFunctionsEmulator} from "firebase/functions";
 // Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -18,8 +17,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app)
-const functions = getFunctions(app)
-const storage = getStorage(app, "http://localhost:9199");
+const functions = getFunctions(app, "us-central1")
 
 // Connect to emulators
 if (location.hostname === "localhost") {
@@ -28,4 +26,4 @@ if (location.hostname === "localhost") {
   connectFirestoreEmulator(db, "localhost", 8088);
 }
 
-export {app, auth, db, functions, storage}
+export {app, auth, db, functions}

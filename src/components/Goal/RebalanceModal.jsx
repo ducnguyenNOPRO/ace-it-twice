@@ -3,7 +3,7 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import prettyMapCategory from "../../constants/prettyMapCategory";
+import {prettyMapCategory} from "../../constants/prettyMapCategory";
 import { useState, useEffect } from "react";
 import { editMultipleBudgets } from "../../api/budget";
 import { useQueryClient } from "@tanstack/react-query";
@@ -83,7 +83,6 @@ export default function RebalanceModal({ open, onClose, currentDate, categoryBud
     };
 
     const refecthBudget = (month, year) => {
-        console.log(month, year);
         queryClient.invalidateQueries({
             queryKey: ["budgets", { month, year }]
         })
@@ -96,8 +95,6 @@ export default function RebalanceModal({ open, onClose, currentDate, categoryBud
             const original = categoryBudgetList.find(orig => orig.category_name === item.category_name)
             return original && original.target_amount !== item.target_amount;
         })
-
-        console.log(changedBudgets)
 
         await editMultipleBudgets(changedBudgets, onClose);
         refecthBudget(endDate.getMonth() + 1, endDate.getFullYear());
