@@ -65,8 +65,8 @@ export default function TransactionHistory({ recentTransactions }) {
                         </div>    
 
                         {/* Amount */}
-                        <div className={tx.amount > 0 ? "text-red-500" : "text-green-500"}>
-                            {tx.amount > 0 ? `-$${tx.amount}` : `$${Math.abs(tx.amount)}`}
+                        <div className={tx.amount < 0 ? "text-red-500" : "text-green-500"}>
+                            {tx.amount < 0 ? `-$${Math.abs(tx.amount)}`:  `${tx.amount}`}
                         </div>
                         <span className="col-span-3 h-px bg-gray-200 block"></span>
                     </React.Fragment>
