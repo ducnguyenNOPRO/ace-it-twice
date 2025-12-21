@@ -11,9 +11,12 @@ import {
 
 export default function MonthlySpending({ monthlySpendingData }) {
     if (monthlySpendingData.length == 0) {
+        const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        const now = new Date();
+        const month = now.getMonth();
         return (
             <div className="text-lg ">
-                No Monthly Spending Data
+                No Monthly Spending in {months[month]}
             </div>
         )
     }
