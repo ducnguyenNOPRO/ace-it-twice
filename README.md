@@ -27,6 +27,7 @@ I'm using firebase emulators for local development and testing.
   npm run serve   ## This will run the emulators
 ```
 **If it fails to load functions, exit (Ctrl C), close the 2 cmds and run it again**
+**Might need to upgrade to Blaze Plan (still free) if you want to use Pubsub for "aggregatedPreviousMonthSpending" cron job**
 
 ## 3. Set up data
  ### 3.1. Create a user in Authentication tab (just need a name, email and password)
@@ -35,9 +36,25 @@ I'm using firebase emulators for local development and testing.
    Grab that User UID you just created -> go to Firestore tab -> create collections named "users" -> pasted UID -> created a field "fullName"
  !<img width="552" height="557" alt="add-user" src="https://github.com/user-attachments/assets/b9cf888f-29ea-444f-acb3-89800435173c" />
  ### 3.3. Log In and Connect Bank
-   Go to Setting -> Connect Bank -> Follow the steps -> Choose between these 2 banks (whichever give you more transactions data, Tartan bank is more consistent) -> Check your DB
+   Go to Setting -> Connect Bank -> Follow the steps -> Choose between these 2 banks 
+      (whichever give you more transactions data, Tartan bank is more consistent) -> Check your DB
  !<img width="460" height="766" alt="bank-connection" src="https://github.com/user-attachments/assets/5f06723f-35e7-41e0-8cfe-49f125b12d8b" />
- ### 3.4. Enjoy
+
+ # Deployment
+ You need to deploy both backend and frontend to Firebase. It's very simple
+ ## Deploy backend
+ ```bash
+ \ace-it-twice\functions>:
+   firebase deploy --only functions
+ ```
+ ## Deploy frontend
+ ```bash
+ \ace-it-twice>:
+  npm run build   ## build it wil vite first
+  firebase deploy --only hosting
+ ```
+
+# Enjoy
 
 
 
