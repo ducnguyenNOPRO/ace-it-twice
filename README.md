@@ -36,7 +36,7 @@ I'm using firebase emulators for local development and testing.
  !<img width="552" height="557" alt="add-user" src="https://github.com/user-attachments/assets/b9cf888f-29ea-444f-acb3-89800435173c" />
  ### 3.3. Log In and Connect Bank
    Go to Setting -> Connect Bank -> Follow the steps -> Choose between these 2 banks (whichever give you more transactions data, Tartan bank is more consistent) -> Check your DB
-   !<img width="460" height="766" alt="bank-connection" src="https://github.com/user-attachments/assets/5f06723f-35e7-41e0-8cfe-49f125b12d8b" />
+ !<img width="460" height="766" alt="bank-connection" src="https://github.com/user-attachments/assets/5f06723f-35e7-41e0-8cfe-49f125b12d8b" />
  ### 3.4. Enjoy
 
 
