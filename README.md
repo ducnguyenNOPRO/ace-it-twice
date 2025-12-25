@@ -26,7 +26,7 @@ I'm using firebase emulators for local development and testing.
 \ace-it-twice\functions>:
   npm run serve   ## This will run the emulators
 ```
-** If it fails to load functions, exit (Ctrl C), close the 2 cmds and run it again **
+**If it fails to load functions, exit (Ctrl C), close the 2 cmds and run it again**
 
 ## 3. Set up data
  ### 3.1. Create a user in Authentication tab (just need a name, email and password)
